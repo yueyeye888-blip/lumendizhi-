@@ -14,7 +14,7 @@
 | Windows 更新/启停/状态 | `scripts/` | 完整 |
 | WinRM 远程部署 | `tools/deploy_remote.py` | 完整 |
 | Lumen 网站发送接口 | `site-integration/` | 集成快照 |
-| GitHub CI | `.github/workflows/test.yml` | Node 22 |
+| GitHub CI 模板 | `ci/test.workflow.yml.example` | Node 22，可选启用 |
 | 架构/迁移/运维/安全文档 | `docs/` | 完整 |
 
 以下敏感或不可移植内容不会备份：

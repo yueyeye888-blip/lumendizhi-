@@ -103,6 +103,7 @@ notepad .\config\runtime-config.json
 - `tools/deploy_remote.py`：从 macOS/Linux 通过 WinRM 远程部署到 Windows。
 - `site-integration/`：Lumen 网页发送端相关接口与消息格式快照。
 - `docs/`：架构、Bot 配置、迁移、运维、安全和故障排查文档。
+- `ci/test.workflow.yml.example`：可选 GitHub Actions 测试模板；需要时复制到 `.github/workflows/test.yml`。
 - `config/`：不含真实密钥的配置模板。
 
 ## 安全说明
