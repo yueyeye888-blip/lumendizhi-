@@ -324,7 +324,15 @@ Register-RuntimeTasks $nodeExe $chromeExe $config
 $commonDesktop = [Environment]::GetFolderPath("CommonDesktopDirectory")
 if (-not $commonDesktop) { $commonDesktop = "C:\Users\Public\Desktop" }
 New-Item -ItemType Directory -Path $commonDesktop -Force | Out-Null
-Copy-Item (Join-Path $InstallRoot "import-payer-wallet.cmd") (Join-Path $commonDesktop "Import Payer Wallet.cmd") -Force
+$badCopy = Join-Path $commonDesktop "Import Payer Wallet.cmd"
+Remove-Item -LiteralPath $badCopy -Force -ErrorAction SilentlyContinue
+$walletShortcutPath = Join-Path $commonDesktop "Import Payer Wallet.lnk"
+$walletShell = New-Object -ComObject WScript.Shell
+$walletShortcut = $walletShell.CreateShortcut($walletShortcutPath)
+$walletShortcut.TargetPath = Join-Path $InstallRoot "import-payer-wallet.cmd"
+$walletShortcut.WorkingDirectory = $InstallRoot
+$walletShortcut.Description = "Import the BSC payer wallet using hidden local input"
+$walletShortcut.Save()
 
 Write-Step "启动 Chrome、状态页和 Telegram 接收器"
 Start-ScheduledTask -TaskName "SafeTGDemoBrowser"
