@@ -14,6 +14,8 @@
 
 安装器通过 `icacls` 移除 `runtime-config.json` 的继承权限，只允许当前 Windows 账户和 SYSTEM 完全控制。
 
+付款私钥通过服务器桌面的隐藏输入导入，使用 Windows CurrentUser DPAPI 加密，并保存到 ACL 受限的 `C:\SafeTGDemo\secrets`。源码、日志、命令行和 Telegram 中不保存私钥。公开地址单独保存在 `payer-wallet.json`。
+
 ## 消息来源
 
 只有以下来源会触发填表：

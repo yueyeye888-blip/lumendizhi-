@@ -297,6 +297,14 @@ Write-Step "复制运行文件到 $InstallRoot"
 New-Item -ItemType Directory -Path $InstallRoot -Force | Out-Null
 Copy-Item -Path (Join-Path $SourceRoot "*") -Destination $InstallRoot -Recurse -Force
 
+Write-Step "安装锁定的 Node.js 依赖"
+Push-Location $InstallRoot
+try {
+  & (Join-Path $NodeRoot "npm.cmd") ci --omit=dev --no-audit --no-fund
+  if ($LASTEXITCODE -ne 0) { throw "npm ci 失败，退出码：$LASTEXITCODE" }
+}
+finally { Pop-Location }
+
 $configPath = Join-Path $InstallRoot "runtime-config.json"
 $json = $config | ConvertTo-Json -Depth 5
 $utf8NoBom = New-Object Text.UTF8Encoding($false)
@@ -308,10 +316,15 @@ Write-Step "执行回归测试"
 & $nodeExe --test `
   (Join-Path $InstallRoot "tests\cdp-fill.test.mjs") `
   (Join-Path $InstallRoot "tests\parser.test.mjs") `
-  (Join-Path $InstallRoot "tests\telegram.test.mjs")
+  (Join-Path $InstallRoot "tests\telegram.test.mjs") `
+  (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
 if ($LASTEXITCODE -ne 0) { throw "回归测试失败，未启动服务。" }
 
 Register-RuntimeTasks $nodeExe $chromeExe $config
+$commonDesktop = [Environment]::GetFolderPath("CommonDesktopDirectory")
+if (-not $commonDesktop) { $commonDesktop = "C:\Users\Public\Desktop" }
+New-Item -ItemType Directory -Path $commonDesktop -Force | Out-Null
+Copy-Item (Join-Path $InstallRoot "import-payer-wallet.cmd") (Join-Path $commonDesktop "Import Payer Wallet.cmd") -Force
 
 Write-Step "启动 Chrome、状态页和 Telegram 接收器"
 Start-ScheduledTask -TaskName "SafeTGDemoBrowser"
@@ -340,3 +353,4 @@ Write-Host "CDP：http://127.0.0.1:$($config.cdpPort)"
 Write-Host "接收器进程 PID：$($botProcess.ProcessId)"
 Write-Host "日志：$InstallRoot\telegram-bot.log"
 Write-Host "安全边界：程序会创建订单并停在支付页，但不会发起链上付款。"
+Write-Host "付款钱包：请在服务器桌面双击 Import Payer Wallet.cmd，以隐藏输入方式本地导入。"

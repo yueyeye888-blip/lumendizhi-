@@ -48,7 +48,23 @@ if ($RunTests) {
   & $NodeExe --test `
     (Join-Path $InstallRoot "tests\cdp-fill.test.mjs") `
     (Join-Path $InstallRoot "tests\parser.test.mjs") `
-    (Join-Path $InstallRoot "tests\telegram.test.mjs")
+    (Join-Path $InstallRoot "tests\telegram.test.mjs") `
+    (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
+}
+
+Write-Host "=== Payer Wallet ===" -ForegroundColor Cyan
+$walletMetadata = Join-Path $InstallRoot "secrets\payer-wallet.json"
+if (Test-Path $walletMetadata) {
+  $wallet = Get-Content $walletMetadata -Raw | ConvertFrom-Json
+  [pscustomobject]@{
+    imported = $true
+    address = $wallet.address
+    chainId = $wallet.chainId
+    encryption = $wallet.encryption
+  } | Format-List
+}
+else {
+  [pscustomobject]@{ imported = $false } | Format-List
 }
 
 Write-Host "=== Telegram Log Tail ===" -ForegroundColor Cyan

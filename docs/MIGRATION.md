@@ -21,6 +21,8 @@ cd C:\lumendizhi
 
 不要复制旧 Chrome Profile。Profile 可能包含 Cookie、登录会话和其他敏感数据。
 
+也不要复制 `payer-private-key.dpapi`。DPAPI 密文绑定原 Windows 账户，应在新服务器桌面重新运行 `Import Payer Wallet.cmd` 导入新服务器。
+
 ## 2. 停止旧服务器
 
 ```powershell
@@ -95,6 +97,7 @@ python3 tools/deploy_remote.py
 5. Chrome 停在支付页，显示 BSC/BEP20、精确金额和收款地址，但没有付款；
 6. 员工订单状态页更新为“等待支付”；
 7. `C:\SafeTGDemo\demo-preview.png` 已更新。
+8. 如需后续自动付款，在服务器桌面运行钱包导入工具，并确认状态脚本只显示公开地址。
 
 ## 6. 回滚
 

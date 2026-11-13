@@ -88,7 +88,7 @@ notepad .\config\runtime-config.json
 # 查看任务、进程、CDP、日志及脱敏配置状态
 .\scripts\status-windows.ps1
 
-# 连同 16 项回归测试一起检查
+# 连同 18 项回归测试一起检查
 .\scripts\status-windows.ps1 -RunTests
 
 # 启动/停止整套服务
@@ -123,3 +123,9 @@ npm test
 ```
 
 当前测试覆盖订单编号协议、必填模版、白名单/可信 Bot 鉴权、完整资料转发、状态回调、受限站点服务访问头、换行转义、`addrs.xyz` 模版选择、自动确认订单和支付页字段读取。
+
+## 本地导入付款钱包
+
+安装完成后，在 Windows 服务器桌面双击 `Import Payer Wallet.cmd`。工具只接受隐藏输入，使用 ethers 校验公开地址，再通过当前 Windows 账户的 DPAPI 加密私钥。密文和公开元数据保存在 `C:\SafeTGDemo\secrets`，ACL 只允许当前账户和 SYSTEM。
+
+钱包密文与当前 Windows 账户绑定。迁移服务器时不要复制密文，应在新服务器重新运行导入工具。公开充值地址可以记录，私钥和助记词不能进入聊天、GitHub、日志或配置样例。

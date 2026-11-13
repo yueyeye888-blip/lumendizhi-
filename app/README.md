@@ -22,6 +22,18 @@ npm test
 SAFE_DEMO_CDP_PORT=9333 TARGET_URL=https://addrs.xyz npm run demo
 ```
 
+## 本地导入付款钱包
+
+部署完成后，在 Windows 服务器桌面双击 `Import Payer Wallet.cmd`，或在服务器本机运行：
+
+```powershell
+C:\SafeTGDemo\import-payer-wallet.cmd
+```
+
+工具会通过隐藏输入读取私钥，使用 ethers 校验对应公开地址，然后以当前 Windows 账户的 DPAPI 加密保存到 `C:\SafeTGDemo\secrets\payer-private-key.dpapi`。公开地址和网络元数据保存在同目录的 `payer-wallet.json`。目录 ACL 只允许当前账户和 SYSTEM 访问；私钥不会出现在命令行、日志、源码或 Telegram 中。
+
+DPAPI 密文绑定当前 Windows 账户。迁移服务器时不要直接复制该密文，应在新服务器重新运行导入工具。
+
 ## Telegram Bot 配置
 
 1. 在 Telegram 中向 `@BotFather` 发送 `/newbot` 创建 Bot，取得 Bot Token。
