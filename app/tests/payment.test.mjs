@@ -28,7 +28,7 @@ test("normalizes a dry-run BSC USDT payment configuration", () => {
   assert.equal(settings.chainId, 56);
   assert.equal(settings.tokenContract, BSC_USDT_CONTRACT);
   assert.equal(settings.maxSingleUsdt, "5");
-  assert.equal(settings.maxDailyUsdt, "20");
+  assert.equal("maxDailyUsdt" in settings, false);
 });
 
 test("validates the exact BSC USDT payment intent and limits", () => {

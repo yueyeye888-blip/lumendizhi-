@@ -34,7 +34,6 @@ Write-Host "=== Sanitized Config ===" -ForegroundColor Cyan
   cdpPort = $port
   paymentMode = if ($config) { $config.paymentMode } else { $null }
   paymentMaxSingleUsdt = if ($config) { $config.paymentMaxSingleUsdt } else { $null }
-  paymentMaxDailyUsdt = if ($config) { $config.paymentMaxDailyUsdt } else { $null }
   liveApprovalConfigured = [bool]($config -and $config.paymentLiveApproval)
 } | Format-List
 

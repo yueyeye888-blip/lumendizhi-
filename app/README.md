@@ -14,7 +14,7 @@
 - `ADDRESS_ORDER_CALLBACK_URL` 与 `ADDRESS_ORDER_CALLBACK_TOKEN` 用于把“自动填表 / 等待支付 / 失败”等状态写回员工订单页。
 - 受限访问站点还需要把 Sites 专用服务令牌保存为 `SITES_SERVICE_ACCESS_TOKEN`；它只用于通过站点访问层，回调接口仍会再次校验订单回调令牌。
 - Bot update offset 会写入 `telegram-offset.json`，重启后不会重复处理已经确认过的消息。
-- BSC 固定校验 Chain ID `56`、官方 RPC 和允许列表中的 Binance-Peg USDT 合约；默认单笔上限 `5 USDT`、24 小时上限 `20 USDT`。
+- BSC 固定校验 Chain ID `56`、官方 RPC 和允许列表中的 Binance-Peg USDT 合约；默认单笔上限 `5 USDT`，不设 24 小时累计上限。
 - `live` 模式必须同时设置独立的二次启用口令；仅改模式字段不会启动付款。
 
 本机测试：

@@ -80,7 +80,6 @@ function Read-Configuration {
     bscRpcUrl = "https://bsc-dataseed.bnbchain.org"
     bscUsdtContract = "0x55d398326f99059fF775485246999027B3197955"
     paymentMaxSingleUsdt = "5"
-    paymentMaxDailyUsdt = "20"
     paymentMinGasBnb = "0.001"
     paymentLiveApproval = ""
   }
@@ -100,14 +99,12 @@ function Normalize-Configuration([object]$RawConfig) {
   $bscRpcUrl = ([string]$RawConfig.bscRpcUrl).Trim()
   $bscUsdtContract = ([string]$RawConfig.bscUsdtContract).Trim()
   $paymentMaxSingleUsdt = ([string]$RawConfig.paymentMaxSingleUsdt).Trim()
-  $paymentMaxDailyUsdt = ([string]$RawConfig.paymentMaxDailyUsdt).Trim()
   $paymentMinGasBnb = ([string]$RawConfig.paymentMinGasBnb).Trim()
   $paymentLiveApproval = ([string]$RawConfig.paymentLiveApproval).Trim()
   if (-not $paymentMode) { $paymentMode = "dry-run" }
   if (-not $bscRpcUrl) { $bscRpcUrl = "https://bsc-dataseed.bnbchain.org" }
   if (-not $bscUsdtContract) { $bscUsdtContract = "0x55d398326f99059fF775485246999027B3197955" }
   if (-not $paymentMaxSingleUsdt) { $paymentMaxSingleUsdt = "5" }
-  if (-not $paymentMaxDailyUsdt) { $paymentMaxDailyUsdt = "20" }
   if (-not $paymentMinGasBnb) { $paymentMinGasBnb = "0.001" }
 
   if ($token -notmatch '^\d{6,12}:[A-Za-z0-9_-]{20,}$') {
@@ -143,13 +140,10 @@ function Normalize-Configuration([object]$RawConfig) {
   if ($bscUsdtContract -cne "0x55d398326f99059fF775485246999027B3197955") {
     throw "bscUsdtContract 不在允许列表中。"
   }
-  foreach ($paymentLimit in @($paymentMaxSingleUsdt, $paymentMaxDailyUsdt, $paymentMinGasBnb)) {
+  foreach ($paymentLimit in @($paymentMaxSingleUsdt, $paymentMinGasBnb)) {
     if ($paymentLimit -notmatch '^(?:0|[1-9]\d*)(?:\.\d{1,18})?$' -or [decimal]$paymentLimit -le 0) {
       throw "付款限额必须是正数。"
     }
-  }
-  if ([decimal]$paymentMaxDailyUsdt -lt [decimal]$paymentMaxSingleUsdt) {
-    throw "paymentMaxDailyUsdt 不能低于 paymentMaxSingleUsdt。"
   }
   if ($paymentMode -eq "live" -and $paymentLiveApproval -cne "ENABLE_BSC_USDT_LIVE_PAYMENT") {
     throw "live 模式缺少 paymentLiveApproval 二次启用口令。"
@@ -169,7 +163,6 @@ function Normalize-Configuration([object]$RawConfig) {
     bscRpcUrl = $parsedRpc.AbsoluteUri
     bscUsdtContract = $bscUsdtContract
     paymentMaxSingleUsdt = $paymentMaxSingleUsdt
-    paymentMaxDailyUsdt = $paymentMaxDailyUsdt
     paymentMinGasBnb = $paymentMinGasBnb
     paymentLiveApproval = $paymentLiveApproval
   }

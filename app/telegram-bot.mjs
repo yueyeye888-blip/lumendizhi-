@@ -75,7 +75,6 @@ export async function loadConfig() {
     bscRpcUrl: process.env.BSC_RPC_URL || fileConfig.bscRpcUrl,
     bscUsdtContract: process.env.BSC_USDT_CONTRACT || fileConfig.bscUsdtContract,
     paymentMaxSingleUsdt: process.env.PAYMENT_MAX_SINGLE_USDT || fileConfig.paymentMaxSingleUsdt,
-    paymentMaxDailyUsdt: process.env.PAYMENT_MAX_DAILY_USDT || fileConfig.paymentMaxDailyUsdt,
     paymentMinGasBnb: process.env.PAYMENT_MIN_GAS_BNB || fileConfig.paymentMinGasBnb,
     paymentLiveApproval: process.env.PAYMENT_LIVE_APPROVAL || fileConfig.paymentLiveApproval,
   }, root);

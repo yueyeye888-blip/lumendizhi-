@@ -53,18 +53,13 @@ export function normalizePaymentSettings(raw = {}, root = process.cwd()) {
     throw new Error("BSC USDT 合约不在允许列表中");
   }
   const maxSingleUsdt = decimalText(raw.paymentMaxSingleUsdt || "5", "单笔上限");
-  const maxDailyUsdt = decimalText(raw.paymentMaxDailyUsdt || "20", "24 小时上限");
   const minGasBnb = decimalText(raw.paymentMinGasBnb || "0.001", "最低 Gas BNB");
-  if (parseUnits(maxDailyUsdt, 18) < parseUnits(maxSingleUsdt, 18)) {
-    throw new Error("24 小时上限不能低于单笔上限");
-  }
   return {
     mode,
     rpcUrl: parsedRpc.href,
     chainId: BSC_CHAIN_ID,
     tokenContract,
     maxSingleUsdt,
-    maxDailyUsdt,
     minGasBnb,
     liveApproval: String(raw.paymentLiveApproval || ""),
     secretPath: path.join(root, "secrets", "payer-private-key.dpapi"),
@@ -241,14 +236,6 @@ async function executeLiveTransfer(intent, context) {
   return { signedTransaction, transactionHash, nonce };
 }
 
-function recentLiveTotal(ledger, now) {
-  const cutoff = now - 24 * 60 * 60 * 1000;
-  return Object.values(ledger.entries || {})
-    .filter((entry) => ["signed", "broadcast", "confirmed"].includes(entry.state))
-    .filter((entry) => Date.parse(entry.createdAt || 0) >= cutoff)
-    .reduce((total, entry) => total + parseUnits(String(entry.amount), 18), 0n);
-}
-
 export async function processPayment({ profile, payment, settings }, dependencies = {}) {
   if (settings.mode === "off") return { mode: "off", skipped: true };
   const intent = validatePaymentIntent(profile, payment, settings);
@@ -265,12 +252,6 @@ export async function processPayment({ profile, payment, settings }, dependencie
 
   const chain = await inspect(intent, settings);
   const now = Date.now();
-  const dailyTotal = recentLiveTotal(ledger, now);
-  const dailyLimit = parseUnits(settings.maxDailyUsdt, 18);
-  if (dailyTotal + intent.amountUnits > dailyLimit) {
-    chain.public.ready = false;
-    chain.public.reasons.push(`24 小时累计金额将超过 ${settings.maxDailyUsdt} USDT`);
-  }
 
   const publicResult = {
     mode: settings.mode,
@@ -281,7 +262,6 @@ export async function processPayment({ profile, payment, settings }, dependencie
     recipient: intent.recipient,
     network: intent.network,
     maxSingleUsdt: settings.maxSingleUsdt,
-    maxDailyUsdt: settings.maxDailyUsdt,
     ...chain.public,
   };
 

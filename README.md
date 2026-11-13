@@ -131,4 +131,4 @@ npm test
 
 钱包密文与当前 Windows 账户绑定。迁移服务器时不要复制密文，应在新服务器重新运行导入工具。公开充值地址可以记录，私钥和助记词不能进入聊天、GitHub、日志或配置样例。
 
-支付默认限制为单笔 5 USDT、24 小时 20 USDT，网络固定 BSC Chain ID 56，代币固定允许列表中的 Binance-Peg USDT。生产付款必须同时将 `paymentMode` 设为 `live` 并配置二次启用口令；默认安装永远是 `dry-run`。
+支付保留单笔 5 USDT 上限，不设 24 小时累计上限；网络固定 BSC Chain ID 56，代币固定允许列表中的 Binance-Peg USDT。生产付款必须同时将 `paymentMode` 设为 `live` 并配置二次启用口令；默认安装永远是 `dry-run`。
