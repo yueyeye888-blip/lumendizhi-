@@ -5,6 +5,7 @@ config/*.private.json
 **/telegram-offset.json
 **/demo-preview.png
 **/*.log
+**/data/
 
 # Dependencies and build output
 node_modules/

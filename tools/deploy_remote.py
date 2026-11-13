@@ -89,6 +89,15 @@ def runtime_config() -> dict[str, object]:
         "orderCallbackUrl": required_env("ADDRESS_ORDER_CALLBACK_URL"),
         "orderCallbackToken": required_env("ADDRESS_ORDER_CALLBACK_TOKEN"),
         "siteAccessToken": required_env("SITES_SERVICE_ACCESS_TOKEN"),
+        "paymentMode": os.environ.get("PAYMENT_MODE", "dry-run").strip().lower(),
+        "bscRpcUrl": os.environ.get("BSC_RPC_URL", "https://bsc-dataseed.bnbchain.org").strip(),
+        "bscUsdtContract": os.environ.get(
+            "BSC_USDT_CONTRACT", "0x55d398326f99059fF775485246999027B3197955"
+        ).strip(),
+        "paymentMaxSingleUsdt": os.environ.get("PAYMENT_MAX_SINGLE_USDT", "5").strip(),
+        "paymentMaxDailyUsdt": os.environ.get("PAYMENT_MAX_DAILY_USDT", "20").strip(),
+        "paymentMinGasBnb": os.environ.get("PAYMENT_MIN_GAS_BNB", "0.001").strip(),
+        "paymentLiveApproval": os.environ.get("PAYMENT_LIVE_APPROVAL", "").strip(),
     }
 
 

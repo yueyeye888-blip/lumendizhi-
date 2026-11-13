@@ -76,6 +76,13 @@ function Read-Configuration {
     orderCallbackUrl = $callbackUrl.Trim()
     orderCallbackToken = $callbackToken
     siteAccessToken = $siteAccessToken
+    paymentMode = "dry-run"
+    bscRpcUrl = "https://bsc-dataseed.bnbchain.org"
+    bscUsdtContract = "0x55d398326f99059fF775485246999027B3197955"
+    paymentMaxSingleUsdt = "5"
+    paymentMaxDailyUsdt = "20"
+    paymentMinGasBnb = "0.001"
+    paymentLiveApproval = ""
   }
 }
 
@@ -89,6 +96,19 @@ function Normalize-Configuration([object]$RawConfig) {
   $callbackUrl = ([string]$RawConfig.orderCallbackUrl).Trim()
   $callbackToken = ([string]$RawConfig.orderCallbackToken).Trim()
   $siteAccessToken = ([string]$RawConfig.siteAccessToken).Trim()
+  $paymentMode = ([string]$RawConfig.paymentMode).Trim().ToLowerInvariant()
+  $bscRpcUrl = ([string]$RawConfig.bscRpcUrl).Trim()
+  $bscUsdtContract = ([string]$RawConfig.bscUsdtContract).Trim()
+  $paymentMaxSingleUsdt = ([string]$RawConfig.paymentMaxSingleUsdt).Trim()
+  $paymentMaxDailyUsdt = ([string]$RawConfig.paymentMaxDailyUsdt).Trim()
+  $paymentMinGasBnb = ([string]$RawConfig.paymentMinGasBnb).Trim()
+  $paymentLiveApproval = ([string]$RawConfig.paymentLiveApproval).Trim()
+  if (-not $paymentMode) { $paymentMode = "dry-run" }
+  if (-not $bscRpcUrl) { $bscRpcUrl = "https://bsc-dataseed.bnbchain.org" }
+  if (-not $bscUsdtContract) { $bscUsdtContract = "0x55d398326f99059fF775485246999027B3197955" }
+  if (-not $paymentMaxSingleUsdt) { $paymentMaxSingleUsdt = "5" }
+  if (-not $paymentMaxDailyUsdt) { $paymentMaxDailyUsdt = "20" }
+  if (-not $paymentMinGasBnb) { $paymentMinGasBnb = "0.001" }
 
   if ($token -notmatch '^\d{6,12}:[A-Za-z0-9_-]{20,}$') {
     throw "接收 Bot Token 格式不正确。"
@@ -115,6 +135,25 @@ function Normalize-Configuration([object]$RawConfig) {
     throw "orderCallbackUrl 必须是有效的 HTTPS 地址。"
   }
   if ($callbackToken.Length -lt 48) { throw "orderCallbackToken 长度不足。" }
+  if ($paymentMode -notin @("off", "dry-run", "live")) { throw "paymentMode 只能是 off、dry-run 或 live。" }
+  $parsedRpc = $null
+  if (-not [Uri]::TryCreate($bscRpcUrl, [UriKind]::Absolute, [ref]$parsedRpc) -or $parsedRpc.Scheme -ne "https") {
+    throw "bscRpcUrl 必须是有效的 HTTPS 地址。"
+  }
+  if ($bscUsdtContract -cne "0x55d398326f99059fF775485246999027B3197955") {
+    throw "bscUsdtContract 不在允许列表中。"
+  }
+  foreach ($paymentLimit in @($paymentMaxSingleUsdt, $paymentMaxDailyUsdt, $paymentMinGasBnb)) {
+    if ($paymentLimit -notmatch '^(?:0|[1-9]\d*)(?:\.\d{1,18})?$' -or [decimal]$paymentLimit -le 0) {
+      throw "付款限额必须是正数。"
+    }
+  }
+  if ([decimal]$paymentMaxDailyUsdt -lt [decimal]$paymentMaxSingleUsdt) {
+    throw "paymentMaxDailyUsdt 不能低于 paymentMaxSingleUsdt。"
+  }
+  if ($paymentMode -eq "live" -and $paymentLiveApproval -cne "ENABLE_BSC_USDT_LIVE_PAYMENT") {
+    throw "live 模式缺少 paymentLiveApproval 二次启用口令。"
+  }
 
   return [ordered]@{
     telegramBotToken = $token
@@ -126,6 +165,13 @@ function Normalize-Configuration([object]$RawConfig) {
     orderCallbackUrl = $parsedCallback.AbsoluteUri
     orderCallbackToken = $callbackToken
     siteAccessToken = $siteAccessToken
+    paymentMode = $paymentMode
+    bscRpcUrl = $parsedRpc.AbsoluteUri
+    bscUsdtContract = $bscUsdtContract
+    paymentMaxSingleUsdt = $paymentMaxSingleUsdt
+    paymentMaxDailyUsdt = $paymentMaxDailyUsdt
+    paymentMinGasBnb = $paymentMinGasBnb
+    paymentLiveApproval = $paymentLiveApproval
   }
 }
 
@@ -316,6 +362,7 @@ Write-Step "执行回归测试"
 & $nodeExe --test `
   (Join-Path $InstallRoot "tests\cdp-fill.test.mjs") `
   (Join-Path $InstallRoot "tests\parser.test.mjs") `
+  (Join-Path $InstallRoot "tests\payment.test.mjs") `
   (Join-Path $InstallRoot "tests\telegram.test.mjs") `
   (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
 if ($LASTEXITCODE -ne 0) { throw "回归测试失败，未启动服务。" }
@@ -353,9 +400,9 @@ if (-not $botProcess) {
 }
 
 if ($DemoFill) {
-  Write-Step "使用虚构样例创建未支付测试订单（不会付款）"
-  & $nodeExe (Join-Path $InstallRoot "cdp-fill.mjs") (Join-Path $InstallRoot "sample-message.txt")
-  if ($LASTEXITCODE -ne 0) { throw "样例填表失败。" }
+  Write-Step "使用虚构样例创建测试订单并执行 dry-run 支付预检"
+  & $nodeExe (Join-Path $InstallRoot "dry-run-flow.mjs") (Join-Path $InstallRoot "sample-message.txt")
+  if ($LASTEXITCODE -ne 0) { throw "样例端到端预演失败。" }
 }
 
 Write-Host "`n安装完成" -ForegroundColor Green
@@ -364,5 +411,5 @@ Write-Host "Chrome：$browserVersion"
 Write-Host "CDP：http://127.0.0.1:$($config.cdpPort)"
 Write-Host "接收器进程 PID：$($botProcess.ProcessId)"
 Write-Host "日志：$InstallRoot\telegram-bot.log"
-Write-Host "安全边界：程序会创建订单并停在支付页，但不会发起链上付款。"
+Write-Host "支付模式：$($config.paymentMode)（dry-run 会完成钱包与链上预检，但不签名、不广播）。"
 Write-Host "付款钱包：请在服务器桌面双击‘导入付款钱包（窗口保持打开）’，以隐藏输入方式本地导入。"

@@ -36,3 +36,11 @@ test("local importer hides input and stores it with CurrentUser DPAPI", async ()
   assert.ok(source.includes("/inheritance:r"));
   assert.ok(!source.includes("Write-Host $plainText"));
 });
+
+test("payment key reader only returns the DPAPI-decrypted key through stdout", async () => {
+  const source = await readFile(path.join(root, "scripts", "read-payer-key.ps1"), "utf8");
+  assert.ok(source.includes("ConvertTo-SecureString $encrypted"));
+  assert.ok(source.includes("[Console]::Out.Write($plainText)"));
+  assert.ok(source.includes("ZeroFreeBSTR"));
+  assert.ok(!source.includes("Write-Host $plainText"));
+});

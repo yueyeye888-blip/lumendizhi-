@@ -11,6 +11,7 @@
 - Chrome Profile：当前 Windows 用户目录下的 `safe_tg_demo_profile`
 - 付款钱包 DPAPI 密文：`C:\SafeTGDemo\secrets\payer-private-key.dpapi`
 - 付款钱包公开元数据：`C:\SafeTGDemo\secrets\payer-wallet.json`
+- 付款预演/幂等记录：`C:\SafeTGDemo\data\payment-ledger.json`
 
 `runtime-config.json` 还保存订单回调地址、回调令牌和 Sites 服务访问令牌。状态脚本只显示它们是否存在，不输出内容。
 
@@ -24,6 +25,16 @@
 状态脚本只显示 Token 是否存在，不输出 Token 内容。
 
 钱包状态只显示是否已导入、公开地址、Chain ID 和加密方式，不会解密或输出私钥。
+
+支付状态只显示模式、限额、是否配置 live 二次口令以及记录数量，不输出私密配置。
+
+```powershell
+# 独立检查钱包、BSC RPC、USDT/BNB 余额与 Gas；必须处于 dry-run
+C:\Tools\node22\node.exe C:\SafeTGDemo\wallet-preflight.mjs
+
+# 使用虚构资料完整建单并预检；会创建未付款测试订单
+C:\Tools\node22\node.exe C:\SafeTGDemo\dry-run-flow.mjs C:\SafeTGDemo\sample-message.txt
+```
 
 ## 启停
 

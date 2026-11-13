@@ -11,5 +11,12 @@
   "cdpPort": 9333,
   "orderCallbackUrl": "https://YOUR_SITE.example/api/address-orders/callback",
   "orderCallbackToken": "PASTE_A_RANDOM_64_HEX_CALLBACK_TOKEN_HERE",
-  "siteAccessToken": "PASTE_SITES_SERVICE_ACCESS_TOKEN_HERE"
+  "siteAccessToken": "PASTE_SITES_SERVICE_ACCESS_TOKEN_HERE",
+  "paymentMode": "dry-run",
+  "bscRpcUrl": "https://bsc-dataseed.bnbchain.org",
+  "bscUsdtContract": "0x55d398326f99059fF775485246999027B3197955",
+  "paymentMaxSingleUsdt": "5",
+  "paymentMaxDailyUsdt": "20",
+  "paymentMinGasBnb": "0.001",
+  "paymentLiveApproval": ""
 }

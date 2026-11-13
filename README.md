@@ -2,7 +2,7 @@
 
 这是当前地址资料生成/传递/自动建单链路的可迁移备份。它接收 Telegram 中固定格式的个人资料与所选模版，解析后通过 Chrome DevTools Protocol 选择 `https://addrs.xyz` 的对应模版、填写资料、创建并确认订单，再把精确金额、BSC/BEP20 网络和收款地址写回员工订单页。
 
-程序会停在支付页面，**不会发起链上转账或自动支付**。
+程序已接入 BSC USDT 自动支付模块，但生产默认固定为 **`dry-run`**：会完成钱包解密、链与合约校验、余额、Gas、限额和防重检查，但不签名、不广播。
 
 ## 完整链路
 
@@ -14,7 +14,8 @@ Lumen 网页提交
   → 消息格式与来源校验
   → Chrome CDP (9333)
   → addrs.xyz 同步选择模版并自动填入
-  → 创建并确认支付订单（不付款）
+  → 创建并确认支付订单
+  → BSC USDT 付款预检（默认 dry-run）
   → 状态回调到员工订单页 + Telegram 通知管理员
 ```
 
@@ -78,7 +79,7 @@ notepad .\config\runtime-config.json
 2. 在新服务器完成一键安装；
 3. 执行 `scripts\status-windows.ps1 -RunTests`；
 4. 从 Lumen 网页提交一条虚构测试资料；
-5. 确认 Telegram 收到完整资料、员工进入订单状态页，且流程停在支付页未付款。
+5. 确认 Telegram 收到完整资料与 `dry-run` 支付预检结果，并明确显示“未签名、未广播”。
 
 详细步骤见 [迁移手册](docs/MIGRATION.md)。
 
@@ -88,7 +89,7 @@ notepad .\config\runtime-config.json
 # 查看任务、进程、CDP、日志及脱敏配置状态
 .\scripts\status-windows.ps1
 
-# 连同 18 项回归测试一起检查
+# 连同 23 项回归测试一起检查
 .\scripts\status-windows.ps1 -RunTests
 
 # 启动/停止整套服务
@@ -122,10 +123,12 @@ cd app
 npm test
 ```
 
-当前测试覆盖订单编号协议、必填模版、白名单/可信 Bot 鉴权、完整资料转发、状态回调、受限站点服务访问头、换行转义、`addrs.xyz` 模版选择、自动确认订单和支付页字段读取。
+当前 23 项测试还覆盖 BSC USDT 合约允许列表、支付金额限制、`dry-run` 禁止签名/广播、`live` 二次启用门禁和 DPAPI 解密脚本。
 
 ## 本地导入付款钱包
 
 安装完成后，在 Windows 服务器桌面双击 `导入付款钱包（窗口保持打开）` 快捷方式。启动器会明确提示何时粘贴，并在成功或失败后保留结果，不会落回普通 `PS>` 命令提示符。工具只接受隐藏输入，使用 ethers 校验公开地址，再通过当前 Windows 账户的 DPAPI 加密私钥。密文和公开元数据保存在 `C:\SafeTGDemo\secrets`，ACL 只允许当前账户和 SYSTEM。
 
 钱包密文与当前 Windows 账户绑定。迁移服务器时不要复制密文，应在新服务器重新运行导入工具。公开充值地址可以记录，私钥和助记词不能进入聊天、GitHub、日志或配置样例。
+
+支付默认限制为单笔 5 USDT、24 小时 20 USDT，网络固定 BSC Chain ID 56，代币固定允许列表中的 Binance-Peg USDT。生产付款必须同时将 `paymentMode` 设为 `live` 并配置二次启用口令；默认安装永远是 `dry-run`。

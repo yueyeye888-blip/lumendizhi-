@@ -32,6 +32,10 @@ Write-Host "=== Sanitized Config ===" -ForegroundColor Cyan
   siteAccessTokenPresent = [bool]($config -and $config.siteAccessToken)
   targetUrl = if ($config) { $config.targetUrl } else { $null }
   cdpPort = $port
+  paymentMode = if ($config) { $config.paymentMode } else { $null }
+  paymentMaxSingleUsdt = if ($config) { $config.paymentMaxSingleUsdt } else { $null }
+  paymentMaxDailyUsdt = if ($config) { $config.paymentMaxDailyUsdt } else { $null }
+  liveApprovalConfigured = [bool]($config -and $config.paymentLiveApproval)
 } | Format-List
 
 Write-Host "=== Chrome CDP ===" -ForegroundColor Cyan
@@ -48,6 +52,7 @@ if ($RunTests) {
   & $NodeExe --test `
     (Join-Path $InstallRoot "tests\cdp-fill.test.mjs") `
     (Join-Path $InstallRoot "tests\parser.test.mjs") `
+    (Join-Path $InstallRoot "tests\payment.test.mjs") `
     (Join-Path $InstallRoot "tests\telegram.test.mjs") `
     (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
 }
@@ -65,6 +70,19 @@ if (Test-Path $walletMetadata) {
 }
 else {
   [pscustomobject]@{ imported = $false } | Format-List
+}
+
+Write-Host "=== Payment Ledger ===" -ForegroundColor Cyan
+$paymentLedger = Join-Path $InstallRoot "data\payment-ledger.json"
+if (Test-Path $paymentLedger) {
+  $ledger = Get-Content $paymentLedger -Raw | ConvertFrom-Json
+  [pscustomobject]@{
+    present = $true
+    entryCount = @($ledger.entries.psobject.Properties).Count
+  } | Format-List
+}
+else {
+  [pscustomobject]@{ present = $false; entryCount = 0 } | Format-List
 }
 
 Write-Host "=== Telegram Log Tail ===" -ForegroundColor Cyan

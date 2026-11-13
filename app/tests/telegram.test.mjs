@@ -73,11 +73,12 @@ test("rejects an untrusted bot sender", () => {
   assert.equal(isMessageAuthorized(message, config), false);
 });
 
-test("forwards trusted submission text and reports payment details", async () => {
+test("forwards trusted submission text and reports the payment preflight", async () => {
   const source = await readFile(path.join(testDir, "..", "telegram-bot.mjs"), "utf8");
   assert.ok(source.includes("await reply(config, statusChatId, message.text)"));
-  assert.ok(source.includes('status: "payment_pending"'));
+  assert.ok(source.includes('"payment_pending"'));
   assert.ok(source.includes("paymentAddress"));
   assert.ok(source.includes('"OAI-Sites-Authorization"'));
-  assert.ok(source.includes("流程已停在支付页面，尚未付款"));
+  assert.ok(source.includes("自动支付预演通过"));
+  assert.ok(source.includes("dry-run 模式已确认"));
 });

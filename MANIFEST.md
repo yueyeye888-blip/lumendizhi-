@@ -9,8 +9,9 @@
 | 白名单/可信 Bot 鉴权 | `app/lib/telegram.mjs` | 完整 |
 | Chrome CDP 自动填表与创建支付订单 | `app/cdp-fill.mjs` | 完整 |
 | 本机状态演示页 | `app/server.mjs`, `app/public/` | 完整 |
-| Node 回归测试 | `app/tests/` | 18 项 |
+| Node 回归测试 | `app/tests/` | 23 项 |
 | 本地钱包导入与地址校验 | `app/scripts/import-payer-wallet.ps1`, `app/wallet-address.mjs` | 完整 |
+| BSC USDT 付款预检/签名/幂等 | `app/lib/payment.mjs`, `app/scripts/read-payer-key.ps1` | 完整，默认 dry-run |
 | Windows 一键安装 | `bootstrap.ps1`, `scripts/install-windows.ps1` | 完整 |
 | Windows 更新/启停/状态 | `scripts/` | 完整 |
 | WinRM 远程部署 | `tools/deploy_remote.py` | 完整 |

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
+import { normalizePaymentSettings, processPayment } from "./lib/payment.mjs";
 import {
   isMessageAuthorized,
   messageFromUpdate,
@@ -69,6 +70,15 @@ export async function loadConfig() {
   if (orderCallbackUrl && new URL(orderCallbackUrl).protocol !== "https:") {
     throw new Error("订单状态回调地址必须使用 HTTPS");
   }
+  const paymentSettings = normalizePaymentSettings({
+    paymentMode: process.env.PAYMENT_MODE || fileConfig.paymentMode || "dry-run",
+    bscRpcUrl: process.env.BSC_RPC_URL || fileConfig.bscRpcUrl,
+    bscUsdtContract: process.env.BSC_USDT_CONTRACT || fileConfig.bscUsdtContract,
+    paymentMaxSingleUsdt: process.env.PAYMENT_MAX_SINGLE_USDT || fileConfig.paymentMaxSingleUsdt,
+    paymentMaxDailyUsdt: process.env.PAYMENT_MAX_DAILY_USDT || fileConfig.paymentMaxDailyUsdt,
+    paymentMinGasBnb: process.env.PAYMENT_MIN_GAS_BNB || fileConfig.paymentMinGasBnb,
+    paymentLiveApproval: process.env.PAYMENT_LIVE_APPROVAL || fileConfig.paymentLiveApproval,
+  }, root);
 
   return {
     token,
@@ -80,6 +90,7 @@ export async function loadConfig() {
     orderCallbackUrl,
     orderCallbackToken,
     siteAccessToken,
+    paymentSettings,
   };
 }
 
@@ -123,7 +134,7 @@ async function updateOrderStatus(config, requestNo, payload) {
   if (!response.ok) throw new Error(`订单状态回调失败 (${response.status})`);
 }
 
-async function runFill(config, text) {
+export async function runFill(config, text) {
   const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "safe-tg-message-"));
   const messagePath = path.join(temporaryDirectory, "message.txt");
   try {
@@ -183,7 +194,7 @@ async function handleMessage(config, message) {
     await reply(
       config,
       message.chatId,
-      `当前 Chat ID：${message.chatId}\n收到“📩 新的个人资料提交”后，程序会自动填表并创建支付订单，停在支付页面。`,
+      `当前 Chat ID：${message.chatId}\n收到“📩 新的个人资料提交”后，程序会自动填表、创建支付订单并执行当前付款模式（现为 dry-run）。`,
       message.messageId
     );
     return;
@@ -218,9 +229,18 @@ async function handleMessage(config, message) {
   try {
     const result = await runFill(config, message.text);
     const payment = result?.payment || {};
+    const paymentResult = await processPayment({
+      profile,
+      payment,
+      settings: config.paymentSettings,
+    });
+    const isDryRun = paymentResult.mode === "dry-run";
+    const isConfirmed = paymentResult.confirmed === true;
     await updateOrderStatus(config, profile.requestNo, {
-      status: "payment_pending",
-      statusMessage: "支付订单已创建，等待后续付款处理",
+      status: isConfirmed ? "payment_confirmed" : "payment_pending",
+      statusMessage: isConfirmed
+        ? "支付已确认，文件正在处理"
+        : "支付信息已校验，文件正在处理",
       externalOrderNo: payment.externalOrderNo,
       externalOrderUrl: payment.externalOrderUrl,
       paymentAmount: payment.paymentAmount,
@@ -232,23 +252,30 @@ async function handleMessage(config, message) {
       config,
       statusChatId,
       [
-        "✅ 支付订单已创建",
+        isDryRun
+          ? (paymentResult.ready ? "🧪 自动支付预演通过（未签名、未广播）" : "⚠️ 自动支付预演未通过（未签名、未广播）")
+          : "✅ BSC USDT 支付已确认",
         "",
         `订单编号：${profile.requestNo}`,
         `addrs.xyz 订单：${payment.externalOrderNo || "未读取"}`,
         `支付金额：${payment.paymentAmount || "—"} ${payment.paymentCurrency || ""}`.trim(),
         `支付网络：${payment.paymentNetwork || "—"}`,
         `收款地址：${payment.paymentAddress || "—"}`,
+        `付款钱包：${paymentResult.walletAddress || "—"}`,
+        `USDT 余额：${paymentResult.usdtBalance || "—"}`,
+        `BNB Gas 余额：${paymentResult.bnbBalance || "—"}`,
+        ...(paymentResult.reasons?.length ? [`未通过原因：${paymentResult.reasons.join("；")}`] : []),
+        ...(paymentResult.transactionHash ? [`交易哈希：${paymentResult.transactionHash}`, `链上查询：${paymentResult.explorerUrl}`] : []),
         "",
-        "流程已停在支付页面，尚未付款。",
+        isDryRun ? "dry-run 模式已确认：本次不会发起链上交易。" : "链上交易已获得 1 个区块确认。",
       ].join("\n"),
       replyToMessageId,
     );
   } catch (error) {
     await updateOrderStatus(config, profile.requestNo, {
       status: "failed",
-      statusMessage: "自动创建支付订单失败，请联系管理员",
-      error: error instanceof Error ? error.message : "自动创建支付订单失败",
+      statusMessage: "自动处理失败，请联系管理员",
+      error: error instanceof Error ? error.message : "自动处理失败",
     }).catch(() => {});
     throw error;
   }
@@ -284,7 +311,7 @@ export async function runBot() {
           if (message && isMessageAuthorized(message, config)) {
             const statusChatId = statusChatIdFor(message, config);
             const replyToMessageId = statusChatId === message.chatId ? message.messageId : undefined;
-            await reply(config, statusChatId, "自动创建支付订单失败，请检查服务器日志后重试。", replyToMessageId)
+            await reply(config, statusChatId, "自动处理失败，请检查服务器日志后重试。", replyToMessageId)
               .catch(() => {});
           }
         } finally {
