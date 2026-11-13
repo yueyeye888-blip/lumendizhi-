@@ -1,8 +1,8 @@
 # Lumen 地址资料自动填入系统
 
-这是当前地址资料生成/传递/自动填表链路的可迁移备份。它接收 Telegram 中固定格式的个人资料与所选模版，解析后通过 Chrome DevTools Protocol 先选中 `https://addrs.xyz` 的对应模版，再填入姓名、三行地址和接收邮箱。
+这是当前地址资料生成/传递/自动建单链路的可迁移备份。它接收 Telegram 中固定格式的个人资料与所选模版，解析后通过 Chrome DevTools Protocol 选择 `https://addrs.xyz` 的对应模版、填写资料、创建并确认订单，再把精确金额、BSC/BEP20 网络和收款地址写回员工订单页。
 
-程序只负责填入字段，**不会点击网页提交按钮，也不会自动购买或生成订单**。
+程序会停在支付页面，**不会发起链上转账或自动支付**。
 
 ## 完整链路
 
@@ -14,7 +14,8 @@ Lumen 网页提交
   → 消息格式与来源校验
   → Chrome CDP (9333)
   → addrs.xyz 同步选择模版并自动填入
-  → 处理结果通知管理员
+  → 创建并确认支付订单（不付款）
+  → 状态回调到员工订单页 + Telegram 通知管理员
 ```
 
 ## 新 Windows 服务器一键安装
@@ -42,6 +43,8 @@ cd C:\lumendizhi
 2. 网页发送 Bot 的数字 ID；
 3. 接收处理结果的管理员 Chat ID；
 4. 目标网页和 CDP 端口。
+5. Lumen 订单回调地址与随机回调令牌；
+6. Sites 服务访问令牌（受限站点需要）。
 
 随后它会：
 
@@ -74,8 +77,8 @@ notepad .\config\runtime-config.json
 1. 在旧服务器执行 `scripts\stop-windows.ps1`；
 2. 在新服务器完成一键安装；
 3. 执行 `scripts\status-windows.ps1 -RunTests`；
-4. 向接收 Bot 发送一条虚构测试资料；
-5. 确认网页只被填入、未被自动提交。
+4. 从 Lumen 网页提交一条虚构测试资料；
+5. 确认 Telegram 收到完整资料、员工进入订单状态页，且流程停在支付页未付款。
 
 详细步骤见 [迁移手册](docs/MIGRATION.md)。
 
@@ -85,7 +88,7 @@ notepad .\config\runtime-config.json
 # 查看任务、进程、CDP、日志及脱敏配置状态
 .\scripts\status-windows.ps1
 
-# 连同 12 项回归测试一起检查
+# 连同 16 项回归测试一起检查
 .\scripts\status-windows.ps1 -RunTests
 
 # 启动/停止整套服务
@@ -108,7 +111,7 @@ notepad .\config\runtime-config.json
 
 ## 安全说明
 
-仓库不包含 Bot Token、Windows 密码、个人 Chat ID、浏览器用户数据或生产数据库。Chrome Profile 也不会备份；如果目标网站需要登录，请在新服务器的自动化 Chrome 窗口中人工登录一次。
+仓库不包含 Bot Token、订单回调令牌、Sites 服务访问令牌、Windows 密码、个人 Chat ID、浏览器用户数据或生产数据库。Chrome Profile 也不会备份；如果目标网站需要登录，请在新服务器的自动化 Chrome 窗口中人工登录一次。钱包私钥或助记词也绝不能写入仓库、配置样例或聊天记录。
 
 ## 本地测试
 
@@ -119,4 +122,4 @@ cd app
 npm test
 ```
 
-当前测试覆盖消息解析、必填模版、白名单/可信 Bot 鉴权、状态通知路由、换行转义、`addrs.xyz` 模版选择顺序和当前字段映射。
+当前测试覆盖订单编号协议、必填模版、白名单/可信 Bot 鉴权、完整资料转发、状态回调、受限站点服务访问头、换行转义、`addrs.xyz` 模版选择、自动确认订单和支付页字段读取。

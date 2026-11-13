@@ -5,6 +5,10 @@
 ## 文件
 
 - `app/api/personal-details/submit/route.ts`：登录用户提交资料后，通过 Telegram Bot API 发送固定格式消息。
+- `app/address-orders/[requestNo]/page.tsx` 与 `components/address-order-status.tsx`：员工订单状态页与轮询界面。
+- `app/api/address-orders/[requestNo]/route.ts`：只允许订单所有者或管理员读取状态。
+- `app/api/address-orders/callback/route.ts`：Windows 使用随机令牌写回自动填表与支付订单状态。
+- `db/schema.ts` 与 `drizzle/0007_address_orders.sql`：订单状态 D1 表与迁移。
 - `app/api/supplier-templates/route.ts`：提供当前 addrs.xyz 模版目录快照。
 - `app/api/settings/telegram/route.ts`：管理员读取和保存发送 Bot 配置。
 - `components/personal-details-form.tsx`：要求先选模版，并把模版 ID/名称随资料提交。
@@ -27,6 +31,9 @@
 Windows telegramBotToken = 专用接收 Bot Token
 Windows trustedSenderBotIds = 网页发送 Bot 数字 ID
 Windows notifyChatId = 管理员个人 Chat ID
+Windows orderCallbackUrl = 站点 /api/address-orders/callback
+Windows orderCallbackToken = 与站点环境变量 ADDRESS_ORDER_CALLBACK_TOKEN 相同的随机值
+Windows siteAccessToken = Sites 专用服务访问令牌
 ```
 
 `lib/telegram-settings.ts` 会优先使用生产环境的 `TELEGRAM_CHAT_ID` 覆盖数据库中的旧 Chat ID，但不会覆盖数据库中加密保存的发送 Bot Token。这样可以在不重新输入 Token 的情况下切换接收方。
@@ -39,4 +46,5 @@ Windows notifyChatId = 管理员个人 Chat ID
 4. Windows 接收器信任网站发送 Bot 的数字 ID。
 5. 自动生成地址功能可选择国家，生成后仍可修改，不依赖已删除的隔离测试流程。
 6. 网站未选模版时不能提交，服务端也会拒绝缺失或被篡改的模版。
-7. 使用虚构资料测试，并确认 addrs.xyz 先选中同名模版、再填入资料且不提交。
+7. 使用虚构资料测试，并确认 addrs.xyz 先选中同名模版、填入资料、创建支付订单后停在支付页，不执行付款。
+8. 员工提交后跳转订单状态页；Windows 回调使用 Sites 服务访问头与订单令牌双重鉴权。

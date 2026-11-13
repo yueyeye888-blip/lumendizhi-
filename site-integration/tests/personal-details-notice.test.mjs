@@ -7,9 +7,12 @@ test("formats the submission as name, three address lines and email", () => {
     { fullName: "Jane Doe", addressLines: ["1 Main St", "Austin", ""], recipientEmail: "jane@example.com" },
     "staff@example.com",
     "A2A",
+    "ADDR-20261114-AB12CD34",
   );
   assert.equal(text, [
     "📩 新的个人资料提交",
+    "订单编号：ADDR-20261114-AB12CD34",
+    "",
     "提交人账号：staff@example.com",
     "",
     "姓名：Jane Doe",

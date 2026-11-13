@@ -1,6 +1,6 @@
 # TG 资料同步自动填入工具 (https://addrs.xyz)
 
-通过 Telegram Bot 长轮询接收“新的个人资料提交”格式消息，并使用独立 Chrome CDP 端口 (`9333`) 自动打开和填入目标网站 `https://addrs.xyz`。程序只填入字段，不点击提交按钮。
+通过 Telegram Bot 长轮询接收“新的个人资料提交”格式消息，并使用独立 Chrome CDP 端口 (`9333`) 自动打开和填入目标网站 `https://addrs.xyz`。填表后程序会创建并确认订单，读取支付金额、BSC/BEP20 网络和收款地址，然后停在支付页面；不会自动付款。
 
 配置说明：
 
@@ -10,7 +10,9 @@
 - 模版校验通过后，自动匹配目标页面的姓名、三行地址（或合并地址框）及接收邮箱输入框，并触发 React/Vue 兼容的原生 `input`/`change` 事件。
 - 只有 `TELEGRAM_ALLOWED_CHAT_IDS` 白名单中的会话可以触发填表。
 - 网页发送 Bot 可通过 Bot-to-Bot Communication 把提交正文发给专用接收 Bot；接收端仅信任 `TELEGRAM_TRUSTED_SENDER_BOT_IDS`。
-- 来自可信 Bot 的处理结果会发到 `TELEGRAM_NOTIFY_CHAT_ID`，不回复发送 Bot，避免循环对话。
+- 来自可信 Bot 的完整资料正文和处理结果都会发到 `TELEGRAM_NOTIFY_CHAT_ID`，不回复发送 Bot，避免循环对话。
+- `ADDRESS_ORDER_CALLBACK_URL` 与 `ADDRESS_ORDER_CALLBACK_TOKEN` 用于把“自动填表 / 等待支付 / 失败”等状态写回员工订单页。
+- 受限访问站点还需要把 Sites 专用服务令牌保存为 `SITES_SERVICE_ACCESS_TOKEN`；它只用于通过站点访问层，回调接口仍会再次校验订单回调令牌。
 - Bot update offset 会写入 `telegram-offset.json`，重启后不会重复处理已经确认过的消息。
 
 本机测试：
@@ -28,12 +30,31 @@ SAFE_DEMO_CDP_PORT=9333 TARGET_URL=https://addrs.xyz npm run demo
 
 群组使用时需要先把 Bot 加入群组，并在 `@BotFather` 的 `/setprivacy` 中关闭隐私模式，否则 Bot 通常只能收到命令和提及它的消息。频道使用时需要把 Bot 加为管理员，才能接收频道消息和发送状态回复。建议为本工具创建专用 Bot，不要复用已经配置 Webhook 的 Bot。
 
-完整部署请从仓库根目录运行 `bootstrap.ps1`，远程 WinRM 部署使用 `tools/deploy_remote.py`。两种方式都会把 Token 写入服务器的 `C:\SafeTGDemo\runtime-config.json`，并限制为当前 Windows 账户和 SYSTEM 可访问；Token 不会写入项目源码或计划任务命令行。详见仓库根目录 README 与 `docs/`。
+部署到 Windows 服务器前，在本机设置连接信息；不要把密码写入脚本或提交到版本库：
+
+```bash
+export SAFE_DEMO_HOST="服务器 IP"
+export SAFE_DEMO_USER="administrator"
+export SAFE_DEMO_PASSWORD="服务器密码"
+export TELEGRAM_BOT_TOKEN="从 BotFather 获得的 Token"
+# 首次部署可以留空；取得 /chatid 回复后再设置并重新部署
+export TELEGRAM_ALLOWED_CHAT_IDS="123456789,-1001234567890"
+export TELEGRAM_TRUSTED_SENDER_BOT_IDS="网页发送 Bot 的数字 ID"
+export TELEGRAM_NOTIFY_CHAT_ID="接收处理结果的个人 Chat ID"
+export ADDRESS_ORDER_CALLBACK_URL="https://站点域名/api/address-orders/callback"
+export ADDRESS_ORDER_CALLBACK_TOKEN="与站点环境变量相同的随机令牌"
+export SITES_SERVICE_ACCESS_TOKEN="Sites 为该站点签发的服务访问令牌"
+export TARGET_URL="https://addrs.xyz"
+python3 ../deploy_safe_tg_demo.py
+```
+
+部署脚本会把 Token 写入服务器的 `C:\SafeTGDemo\runtime-config.json`，并限制为当前 Windows 账户和 SYSTEM 可访问。Token 不会写入项目源码或计划任务命令行。
 
 Bot 接受的消息格式：
 
 ```text
 📩 新的个人资料提交
+订单编号：ADDR-20261114-AB12CD34
 姓名：ALICE EXAMPLE
 第 1 行地址：123 Example Street
 第 2 行地址：Testville
@@ -42,6 +63,22 @@ Bot 接受的消息格式：
 接收邮箱：alice@example.test
 ```
 
-处理成功后，Bot 回复“资料已填入网页，请人工核对并提交”。格式错误、非白名单会话或填表失败都不会提交表单。
+处理成功后，Bot 会发送 addrs.xyz 订单号、精确支付金额、BSC/BEP20 网络和收款地址。格式错误、非白名单会话或填表失败都不会继续创建订单。
 
-已部署服务器可在仓库根目录运行 `scripts/update-windows.ps1`，它会保留现有私密配置并重新安装代码。使用 `scripts/status-windows.ps1 -RunTests` 检查服务；需要虚构样例填入时执行更新脚本的 `-DemoFill` 参数。
+服务器已经存在 `runtime-config.json` 时，只更新程序代码并保留现有 Bot Token、白名单和通知配置：
+
+```bash
+python3 ../deploy_safe_tg_demo.py --code-only
+```
+
+只检查并启动已经部署的 Bot（不会执行样例填入）：
+
+```bash
+python3 ../deploy_safe_tg_demo.py --run-only
+```
+
+确实需要使用 `sample-message.txt` 做一次样例填入时，显式增加：
+
+```bash
+python3 ../deploy_safe_tg_demo.py --run-only --demo-fill
+```

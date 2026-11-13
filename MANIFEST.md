@@ -7,9 +7,9 @@
 | Telegram 长轮询接收器 | `app/telegram-bot.mjs` | 完整 |
 | 消息解析与校验 | `app/lib/parser.mjs` | 完整 |
 | 白名单/可信 Bot 鉴权 | `app/lib/telegram.mjs` | 完整 |
-| Chrome CDP 自动填表 | `app/cdp-fill.mjs` | 完整 |
+| Chrome CDP 自动填表与创建支付订单 | `app/cdp-fill.mjs` | 完整 |
 | 本机状态演示页 | `app/server.mjs`, `app/public/` | 完整 |
-| Node 回归测试 | `app/tests/` | 12 项 |
+| Node 回归测试 | `app/tests/` | 16 项 |
 | Windows 一键安装 | `bootstrap.ps1`, `scripts/install-windows.ps1` | 完整 |
 | Windows 更新/启停/状态 | `scripts/` | 完整 |
 | WinRM 远程部署 | `tools/deploy_remote.py` | 完整 |

@@ -1,11 +1,13 @@
 📩 新的个人资料提交
+订单编号：ADDR-20261114-DEMO1234
+
 提交人账号：demo@example.test
 
 姓名：ALICE EXAMPLE
 
-第 1 行地址：123 Example Street
-第 2 行地址：Testville
-第 3 行地址：ZZ 00000, Exampleland
+第 1 行地址：Via Roma 123
+第 2 行地址：Milano 20100
+第 3 行地址：Lombardia, Italy
 
 模版：A2A
 

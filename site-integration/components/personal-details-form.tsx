@@ -101,9 +101,10 @@ export default function PersonalDetailsForm({ selectedTemplate }: { selectedTemp
         cache: "no-store",
         body: JSON.stringify({ profile: validated, template: selectedTemplate }),
       });
-      const data = await response.json() as { message?: string; error?: string };
+      const data = await response.json() as { requestNo?: string; message?: string; error?: string };
       if (!response.ok) throw new Error(data.error || "提交失败");
-      setMessage(data.message || "已提交");
+      if (!data.requestNo) throw new Error("服务器未返回订单编号");
+      window.location.assign(`/address-orders/${encodeURIComponent(data.requestNo)}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "提交失败");
     } finally {
@@ -112,7 +113,7 @@ export default function PersonalDetailsForm({ selectedTemplate }: { selectedTemp
   };
 
   return <form onSubmit={(event) => { event.preventDefault(); void submitProfile(); }} autoComplete="off" aria-label="填写个人资料" className="mb-6 rounded-2xl border border-[#dce5f3] bg-white p-5 sm:p-6">
-    <div className="mb-5"><h2 className="text-base font-semibold text-[#243d64]">填写个人资料</h2><p className="mt-1 text-xs leading-5 text-slate-500">一次性填写，本页不保存资料；接收邮箱请每次手动输入。</p></div>
+    <div className="mb-5"><h2 className="text-base font-semibold text-[#243d64]">填写个人资料</h2><p className="mt-1 text-xs leading-5 text-slate-500">地址正文仅用于本次自动处理，不写入订单记录；接收邮箱请每次手动输入。</p></div>
     <fieldset className="min-w-0 space-y-5">
       <label className="block"><span className="mb-2 block text-sm font-medium">姓名</span><input required maxLength={120} autoComplete="off" value={profile.fullName} onChange={(event) => change("fullName", event.target.value)} placeholder="请输入本人的英文姓名或拼音" className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-[#87a3d9]" /><span className="mt-2 block text-xs leading-5 text-slate-400">建议使用大写拼音；可包含空格、连字符和撇号，不得包含表情。</span></label>
       <div><p className="mb-2 text-sm font-medium">地址模式</p><div className="flex flex-wrap gap-2" role="group" aria-label="地址填写模式"><button type="button" aria-pressed={mode === "manual"} onClick={() => setMode("manual")} className={`${mode === "manual" ? "border-[#6385bd] bg-[#edf3fc] text-[#315c9f]" : "border-slate-200 text-slate-500"} rounded-xl border px-4 py-2.5 text-xs font-medium`}>填写地址信息</button><button type="button" aria-pressed={mode === "translate"} onClick={() => setMode("translate")} className={`${mode === "translate" ? "border-[#6385bd] bg-[#edf3fc] text-[#315c9f]" : "border-slate-200 text-slate-500"} inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-medium`}><Languages size={15} />翻译并规范已有地址</button></div></div>

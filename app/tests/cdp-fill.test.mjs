@@ -20,7 +20,7 @@ test("targets the current visible addrs.xyz address fields", async () => {
   assert.ok(source.includes("'#address_line2'"));
   assert.ok(source.includes("'#address_line3'"));
   assert.ok(source.includes(".filter(isUsableField)"));
-  assert.ok(source.includes("if (el && isUsableField(el)) return el;"));
+  assert.ok(source.includes("if (element && isUsableField(element)) return element;"));
 });
 
 test("selects and verifies the requested addrs.xyz template before filling fields", async () => {
@@ -32,4 +32,24 @@ test("selects and verifies the requested addrs.xyz template before filling field
   assert.ok(source.includes("document.querySelector('#template')?.value"));
   assert.ok(source.includes("templateSelected: true"));
   assert.ok(source.indexOf("templateCard.click()") < source.indexOf("const fieldDefs"));
+});
+
+test("creates and confirms a BSC payment order after filling", async () => {
+  const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
+
+  assert.ok(source.includes("#payment_method_trigger"));
+  assert.ok(source.includes("#create_order_button"));
+  assert.ok(source.includes("#order_confirm_submit"));
+  assert.ok(source.includes("location.pathname.startsWith('/order/')"));
+  assert.ok(source.includes("paymentAmount"));
+  assert.ok(source.includes("paymentNetwork"));
+  assert.ok(source.includes("paymentAddress"));
+  assert.ok(source.indexOf("#create_order_button") < source.indexOf("#order_confirm_submit"));
+});
+
+test("returns to the addrs.xyz home form when a previous order page is open", async () => {
+  const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
+  assert.ok(source.includes("const hasOrderForm"));
+  assert.ok(source.includes("!hasOrderForm"));
+  assert.ok(source.includes('Page.navigate'));
 });

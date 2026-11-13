@@ -1,6 +1,8 @@
-export function formatPersonalDetailsNotice(profile, submitterEmail, templateName) {
+export function formatPersonalDetailsNotice(profile, submitterEmail, templateName, requestNo) {
   const lines = [
     "📩 新的个人资料提交",
+    `订单编号：${requestNo}`,
+    "",
     `提交人账号：${submitterEmail}`,
     "",
     `姓名：${profile.fullName}`,

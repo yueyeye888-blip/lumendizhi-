@@ -16,6 +16,8 @@ cd C:\lumendizhi
 - 网页发送 Bot 数字 ID；
 - 管理员通知 Chat ID；
 - 目标 URL 和 CDP 端口。
+- Lumen 订单回调地址与随机回调令牌；
+- Sites 服务访问令牌（站点保持受限访问时必需）。
 
 不要复制旧 Chrome Profile。Profile 可能包含 Cookie、登录会话和其他敏感数据。
 
@@ -49,6 +51,9 @@ export TELEGRAM_BOT_TOKEN="RECEIVER_BOT_TOKEN"
 export TELEGRAM_ALLOWED_CHAT_IDS="ALLOWED_CHAT_ID"
 export TELEGRAM_TRUSTED_SENDER_BOT_IDS="WEBSITE_SENDER_BOT_ID"
 export TELEGRAM_NOTIFY_CHAT_ID="ADMIN_CHAT_ID"
+export ADDRESS_ORDER_CALLBACK_URL="https://YOUR_SITE/api/address-orders/callback"
+export ADDRESS_ORDER_CALLBACK_TOKEN="RANDOM_64_HEX_TOKEN"
+export SITES_SERVICE_ACCESS_TOKEN="SITES_SERVICE_ACCESS_TOKEN"
 python3 tools/deploy_remote.py
 ```
 
@@ -72,10 +77,11 @@ python3 tools/deploy_remote.py
 
 ```text
 📩 新的个人资料提交
+订单编号：ADDR-20261114-AB12CD34
 姓名：ALICE EXAMPLE
-第 1 行地址：123 Example Street
-第 2 行地址：Testville
-第 3 行地址：ZZ 00000, Exampleland
+第 1 行地址：Via Roma 123
+第 2 行地址：Milano 20100
+第 3 行地址：Lombardia, Italy
 模版：A2A
 接收邮箱：alice@example.test
 ```
@@ -85,9 +91,10 @@ python3 tools/deploy_remote.py
 1. Chrome 打开 `addrs.xyz`；
 2. A2A 模版已选中；
 3. 姓名、三行地址和邮箱均已填入；
-4. Telegram 管理员收到“资料已填入网页”；
-5. 网页没有自动提交；
-6. `C:\SafeTGDemo\demo-preview.png` 已更新。
+4. Telegram 管理员先收到完整资料，再收到支付订单结果；
+5. Chrome 停在支付页，显示 BSC/BEP20、精确金额和收款地址，但没有付款；
+6. 员工订单状态页更新为“等待支付”；
+7. `C:\SafeTGDemo\demo-preview.png` 已更新。
 
 ## 6. 回滚
 

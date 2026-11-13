@@ -2,6 +2,7 @@ const LIMITS = {
   fullName: 120,
   address: 160,
   template: 120,
+  requestNo: 80,
   email: 254,
 };
 
@@ -22,12 +23,14 @@ export function parsePersonalDetailsNotice(text) {
   };
 
   const profile = {
+    requestNo: clean(valueFor("订单编号"), LIMITS.requestNo),
     fullName: clean(valueFor("姓名"), LIMITS.fullName),
     addressLines: [1, 2, 3].map((index) => clean(valueFor(`第 ${index} 行地址`), LIMITS.address)),
     template: clean(valueFor("模版") || valueFor("模板"), LIMITS.template),
     recipientEmail: clean(valueFor("接收邮箱"), LIMITS.email),
   };
 
+  if (!/^ADDR-\d{8}-[A-Z0-9]{8}$/.test(profile.requestNo)) throw new Error("订单编号格式无效");
   if (!profile.fullName) throw new Error("缺少姓名");
   if (!profile.addressLines[0]) throw new Error("缺少第 1 行地址");
   if (!profile.template) throw new Error("缺少模版");

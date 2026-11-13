@@ -58,6 +58,11 @@ function Read-Configuration {
   $notify = Read-Host "管理员通知 Chat ID"
   $target = Read-Host "目标网址（回车使用 https://addrs.xyz）"
   $portText = Read-Host "Chrome CDP 端口（回车使用 9333）"
+  $callbackUrl = Read-Host "订单状态回调地址（例如 https://站点/api/address-orders/callback）"
+  $secureCallbackToken = Read-Host "订单回调令牌（输入会隐藏）" -AsSecureString
+  $callbackToken = Convert-SecureStringToPlainText $secureCallbackToken
+  $secureSiteAccessToken = Read-Host "Sites 服务访问令牌（受限站点必填，输入会隐藏）" -AsSecureString
+  $siteAccessToken = Convert-SecureStringToPlainText $secureSiteAccessToken
   if (-not $target) { $target = "https://addrs.xyz" }
   if (-not $portText) { $portText = "9333" }
 
@@ -68,6 +73,9 @@ function Read-Configuration {
     notifyChatId = $notify.Trim()
     targetUrl = $target.Trim()
     cdpPort = [int]$portText
+    orderCallbackUrl = $callbackUrl.Trim()
+    orderCallbackToken = $callbackToken
+    siteAccessToken = $siteAccessToken
   }
 }
 
@@ -78,6 +86,9 @@ function Normalize-Configuration([object]$RawConfig) {
   $notify = ([string]$RawConfig.notifyChatId).Trim()
   $target = ([string]$RawConfig.targetUrl).Trim()
   $port = [int]$RawConfig.cdpPort
+  $callbackUrl = ([string]$RawConfig.orderCallbackUrl).Trim()
+  $callbackToken = ([string]$RawConfig.orderCallbackToken).Trim()
+  $siteAccessToken = ([string]$RawConfig.siteAccessToken).Trim()
 
   if ($token -notmatch '^\d{6,12}:[A-Za-z0-9_-]{20,}$') {
     throw "接收 Bot Token 格式不正确。"
@@ -96,6 +107,14 @@ function Normalize-Configuration([object]$RawConfig) {
     throw "targetUrl 必须是有效的 HTTP(S) 地址。"
   }
   if ($port -lt 1 -or $port -gt 65535) { throw "cdpPort 必须在 1-65535 之间。" }
+  if (-not $callbackUrl -or -not $callbackToken) {
+    throw "orderCallbackUrl 与 orderCallbackToken 必须同时配置。"
+  }
+  $parsedCallback = $null
+  if (-not [Uri]::TryCreate($callbackUrl, [UriKind]::Absolute, [ref]$parsedCallback) -or $parsedCallback.Scheme -ne "https") {
+    throw "orderCallbackUrl 必须是有效的 HTTPS 地址。"
+  }
+  if ($callbackToken.Length -lt 48) { throw "orderCallbackToken 长度不足。" }
 
   return [ordered]@{
     telegramBotToken = $token
@@ -104,6 +123,9 @@ function Normalize-Configuration([object]$RawConfig) {
     notifyChatId = $notify
     targetUrl = $parsedTarget.AbsoluteUri
     cdpPort = $port
+    orderCallbackUrl = $parsedCallback.AbsoluteUri
+    orderCallbackToken = $callbackToken
+    siteAccessToken = $siteAccessToken
   }
 }
 
@@ -306,7 +328,7 @@ if (-not $botProcess) {
 }
 
 if ($DemoFill) {
-  Write-Step "使用虚构样例填入网页（不会提交）"
+  Write-Step "使用虚构样例创建未支付测试订单（不会付款）"
   & $nodeExe (Join-Path $InstallRoot "cdp-fill.mjs") (Join-Path $InstallRoot "sample-message.txt")
   if ($LASTEXITCODE -ne 0) { throw "样例填表失败。" }
 }
@@ -317,4 +339,4 @@ Write-Host "Chrome：$browserVersion"
 Write-Host "CDP：http://127.0.0.1:$($config.cdpPort)"
 Write-Host "接收器进程 PID：$($botProcess.ProcessId)"
 Write-Host "日志：$InstallRoot\telegram-bot.log"
-Write-Host "安全边界：程序只填入字段，不点击网页提交按钮。"
+Write-Host "安全边界：程序会创建订单并停在支付页，但不会发起链上付款。"

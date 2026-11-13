@@ -10,7 +10,7 @@
 
 ## 收到“消息格式无法识别”
 
-消息必须严格包含标题和五个标签。参考 `app/sample-message.txt` 和 `docs/TELEGRAM_SETUP.md`。
+消息必须严格包含标题、订单编号和资料标签。参考 `app/sample-message.txt` 和 `docs/MESSAGE_FORMAT.md`。
 
 ## Chrome CDP 不可用
 
@@ -36,3 +36,14 @@ Chrome 需要交互式桌面会话。请用运行计划任务的同一个 Window
 ## Bot 互相回复形成循环
 
 可信发送 Bot 的处理结果必须发送到 `notifyChatId`，不能回复原发送 Bot。确认该字段是管理员个人 Chat ID。
+
+## 员工订单页一直停在排队
+
+1. 检查 `orderCallbackUrl`、`orderCallbackToken`、`siteAccessToken` 是否都已配置；
+2. 受限站点回调必须带 `OAI-Sites-Authorization: Bearer <token>`；
+3. 站点回调接口还会独立校验 `Authorization: Bearer <orderCallbackToken>`；
+4. 确认生产 D1 已执行 `address_orders` 迁移。
+
+## addrs.xyz 显示人机验证失败
+
+在服务器的自动化 Chrome 中按网站提示人工完成验证，然后重新提交资料。不要尝试绕过验证码或第三方风控。

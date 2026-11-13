@@ -17,6 +17,11 @@ Windows 运行配置：
 - `trustedSenderBotIds`：网页发送 Bot 的数字 ID；
 - `notifyChatId`：管理员个人 Chat ID；
 - `allowedChatIds`：允许人工直接发送资料的会话 ID，可为空。
+- `orderCallbackUrl`：Lumen 的 `/api/address-orders/callback` 地址；
+- `orderCallbackToken`：与站点环境变量一致的随机令牌；
+- `siteAccessToken`：Sites 为受限站点签发的服务访问令牌。
+
+接收 Bot 收到可信发送 Bot 的资料后，会先把原始正文转发到管理员个人 Chat，再自动创建 addrs.xyz 支付订单并发送支付信息。
 
 ## 获取数字 ID
 
@@ -30,7 +35,7 @@ Windows 运行配置：
 ```json
 {
   "chat_id": "@YOUR_RECEIVER_BOT",
-  "text": "📩 新的个人资料提交\n姓名：..."
+  "text": "📩 新的个人资料提交\n订单编号：ADDR-20261114-AB12CD34\n姓名：..."
 }
 ```
 

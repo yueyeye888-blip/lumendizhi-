@@ -44,6 +44,15 @@ export async function loadConfig() {
   ).trim();
   const targetUrl = process.env.TARGET_URL || fileConfig.targetUrl || "https://addrs.xyz";
   const cdpPort = Number(process.env.SAFE_DEMO_CDP_PORT || fileConfig.cdpPort || 9333);
+  const orderCallbackUrl = String(
+    process.env.ADDRESS_ORDER_CALLBACK_URL || fileConfig.orderCallbackUrl || ""
+  ).trim();
+  const orderCallbackToken = String(
+    process.env.ADDRESS_ORDER_CALLBACK_TOKEN || fileConfig.orderCallbackToken || ""
+  ).trim();
+  const siteAccessToken = String(
+    process.env.SITES_SERVICE_ACCESS_TOKEN || fileConfig.siteAccessToken || ""
+  ).trim();
 
   if (!token) throw new Error("缺少 TELEGRAM_BOT_TOKEN");
   if (trustedSenderBotIds.size && !/^-?\d+$/.test(notifyChatId)) {
@@ -54,6 +63,12 @@ export async function loadConfig() {
   }
   const parsedTarget = new URL(targetUrl);
   if (!['http:', 'https:'].includes(parsedTarget.protocol)) throw new Error("TARGET_URL 必须使用 HTTP(S)");
+  if (Boolean(orderCallbackUrl) !== Boolean(orderCallbackToken)) {
+    throw new Error("订单状态回调地址和令牌必须同时配置");
+  }
+  if (orderCallbackUrl && new URL(orderCallbackUrl).protocol !== "https:") {
+    throw new Error("订单状态回调地址必须使用 HTTPS");
+  }
 
   return {
     token,
@@ -62,6 +77,9 @@ export async function loadConfig() {
     notifyChatId,
     targetUrl: parsedTarget.href,
     cdpPort,
+    orderCallbackUrl,
+    orderCallbackToken,
+    siteAccessToken,
   };
 }
 
@@ -88,12 +106,29 @@ async function reply(config, chatId, text, replyToMessageId) {
   });
 }
 
+async function updateOrderStatus(config, requestNo, payload) {
+  if (!config.orderCallbackUrl) return;
+  const response = await fetch(config.orderCallbackUrl, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${config.orderCallbackToken}`,
+      "content-type": "application/json",
+      ...(config.siteAccessToken
+        ? { "OAI-Sites-Authorization": `Bearer ${config.siteAccessToken}` }
+        : {}),
+    },
+    body: JSON.stringify({ requestNo, ...payload }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) throw new Error(`订单状态回调失败 (${response.status})`);
+}
+
 async function runFill(config, text) {
   const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "safe-tg-message-"));
   const messagePath = path.join(temporaryDirectory, "message.txt");
   try {
     await writeFile(messagePath, text, { encoding: "utf8", mode: 0o600 });
-    await new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [path.join(root, "cdp-fill.mjs"), messagePath], {
         cwd: root,
         env: {
@@ -115,8 +150,8 @@ async function runFill(config, text) {
       };
       const timeout = setTimeout(() => {
         child.kill();
-        finish(() => reject(new Error("填表进程超过 60 秒，已终止")));
-      }, 60_000);
+        finish(() => reject(new Error("创建支付订单进程超过 120 秒，已终止")));
+      }, 120_000);
       child.stdout.on("data", (chunk) => {
         output += chunk;
       });
@@ -126,7 +161,13 @@ async function runFill(config, text) {
       child.on("error", (error) => finish(() => reject(error)));
       child.on("close", (code) => {
         finish(() => {
-          if (code === 0) resolve(output.trim());
+          if (code === 0) {
+            try {
+              resolve(JSON.parse(output.trim()));
+            } catch {
+              reject(new Error("创建支付订单进程返回了无效结果"));
+            }
+          }
           else reject(new Error(`填表进程失败 (${code}): ${errorOutput.trim().slice(0, 500)}`));
         });
       });
@@ -142,7 +183,7 @@ async function handleMessage(config, message) {
     await reply(
       config,
       message.chatId,
-      `当前 Chat ID：${message.chatId}\n发送“📩 新的个人资料提交”格式消息即可填入网页；程序不会自动提交。`,
+      `当前 Chat ID：${message.chatId}\n收到“📩 新的个人资料提交”后，程序会自动填表并创建支付订单，停在支付页面。`,
       message.messageId
     );
     return;
@@ -158,15 +199,59 @@ async function handleMessage(config, message) {
   const statusChatId = statusChatIdFor(message, config);
   const replyToMessageId = statusChatId === message.chatId ? message.messageId : undefined;
 
+  let profile;
   try {
-    parsePersonalDetailsNotice(message.text);
+    profile = parsePersonalDetailsNotice(message.text);
   } catch {
     await reply(config, statusChatId, "消息格式无法识别，未执行填表。", replyToMessageId);
     return;
   }
 
-  await runFill(config, message.text);
-  await reply(config, statusChatId, "资料已填入网页，请人工核对并提交。", replyToMessageId);
+  if (message.senderIsBot && config.trustedSenderBotIds.has(message.senderId)) {
+    await reply(config, statusChatId, message.text);
+  }
+  await updateOrderStatus(config, profile.requestNo, {
+    status: "filling",
+    statusMessage: "正在选择模版、自动填表并创建支付订单",
+  });
+
+  try {
+    const result = await runFill(config, message.text);
+    const payment = result?.payment || {};
+    await updateOrderStatus(config, profile.requestNo, {
+      status: "payment_pending",
+      statusMessage: "支付订单已创建，等待后续付款处理",
+      externalOrderNo: payment.externalOrderNo,
+      externalOrderUrl: payment.externalOrderUrl,
+      paymentAmount: payment.paymentAmount,
+      paymentCurrency: payment.paymentCurrency,
+      paymentNetwork: payment.paymentNetwork,
+      paymentAddress: payment.paymentAddress,
+    });
+    await reply(
+      config,
+      statusChatId,
+      [
+        "✅ 支付订单已创建",
+        "",
+        `订单编号：${profile.requestNo}`,
+        `addrs.xyz 订单：${payment.externalOrderNo || "未读取"}`,
+        `支付金额：${payment.paymentAmount || "—"} ${payment.paymentCurrency || ""}`.trim(),
+        `支付网络：${payment.paymentNetwork || "—"}`,
+        `收款地址：${payment.paymentAddress || "—"}`,
+        "",
+        "流程已停在支付页面，尚未付款。",
+      ].join("\n"),
+      replyToMessageId,
+    );
+  } catch (error) {
+    await updateOrderStatus(config, profile.requestNo, {
+      status: "failed",
+      statusMessage: "自动创建支付订单失败，请联系管理员",
+      error: error instanceof Error ? error.message : "自动创建支付订单失败",
+    }).catch(() => {});
+    throw error;
+  }
 }
 
 export async function runBot() {
@@ -199,7 +284,7 @@ export async function runBot() {
           if (message && isMessageAuthorized(message, config)) {
             const statusChatId = statusChatIdFor(message, config);
             const replyToMessageId = statusChatId === message.chatId ? message.messageId : undefined;
-            await reply(config, statusChatId, "填表失败，请检查服务器日志后重试。", replyToMessageId)
+            await reply(config, statusChatId, "自动创建支付订单失败，请检查服务器日志后重试。", replyToMessageId)
               .catch(() => {});
           }
         } finally {

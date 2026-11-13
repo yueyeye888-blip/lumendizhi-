@@ -27,6 +27,9 @@ Write-Host "=== Sanitized Config ===" -ForegroundColor Cyan
   allowedChatCount = @($config.allowedChatIds).Count
   trustedSenderBotCount = @($config.trustedSenderBotIds).Count
   notifyChatIdPresent = [bool]($config -and $config.notifyChatId)
+  callbackUrlPresent = [bool]($config -and $config.orderCallbackUrl)
+  callbackTokenPresent = [bool]($config -and $config.orderCallbackToken)
+  siteAccessTokenPresent = [bool]($config -and $config.siteAccessToken)
   targetUrl = if ($config) { $config.targetUrl } else { $null }
   cdpPort = $port
 } | Format-List

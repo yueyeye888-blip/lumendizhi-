@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -46,18 +47,32 @@ def run_ps(session: winrm.Session, script: str, label: str) -> str:
 
 def upload_bytes(session: winrm.Session, remote_path: str, content: bytes, label: str) -> None:
     payload = base64.b64encode(content).decode("ascii")
-    run_ps(session, f"[IO.File]::WriteAllBytes('{remote_path}',[byte[]]@())", f"init-{label}")
-    for offset in range(0, len(payload), 2_000):
-        chunk = payload[offset : offset + 2_000]
+    encoded_path = f"{remote_path}.upload.b64"
+    chunk_size = 1_400
+    run_ps(
+        session,
+        f"[IO.File]::WriteAllText('{encoded_path}','{payload[:chunk_size]}',[Text.Encoding]::ASCII)",
+        f"init-{label}",
+    )
+    for offset in range(chunk_size, len(payload), chunk_size):
+        chunk = payload[offset : offset + chunk_size]
         run_ps(
             session,
-            (
-                f"$b=[Convert]::FromBase64String('{chunk}');"
-                f"$s=[IO.File]::Open('{remote_path}',[IO.FileMode]::Append);"
-                "$s.Write($b,0,$b.Length);$s.Dispose()"
-            ),
-            f"upload-{label}-{offset // 2_000 + 1}",
+            f"[IO.File]::AppendAllText('{encoded_path}','{chunk}',[Text.Encoding]::ASCII)",
+            f"upload-{label}-{offset // chunk_size + 1}",
         )
+    expected_hash = hashlib.sha256(content).hexdigest().upper()
+    run_ps(
+        session,
+        (
+            f"$bytes=[Convert]::FromBase64String([IO.File]::ReadAllText('{encoded_path}'));"
+            f"[IO.File]::WriteAllBytes('{remote_path}',$bytes);"
+            f"Remove-Item -LiteralPath '{encoded_path}' -Force;"
+            f"if ((Get-FileHash -Algorithm SHA256 -LiteralPath '{remote_path}').Hash -ne '{expected_hash}') "
+            f"{{ throw 'SHA256 mismatch for {label}' }}"
+        ),
+        f"finalize-{label}",
+    )
 
 
 def runtime_config() -> dict[str, object]:
@@ -71,6 +86,9 @@ def runtime_config() -> dict[str, object]:
         "notifyChatId": os.environ.get("TELEGRAM_NOTIFY_CHAT_ID", "").strip(),
         "targetUrl": os.environ.get("TARGET_URL", "https://addrs.xyz").strip(),
         "cdpPort": int(os.environ.get("SAFE_DEMO_CDP_PORT", "9333")),
+        "orderCallbackUrl": required_env("ADDRESS_ORDER_CALLBACK_URL"),
+        "orderCallbackToken": required_env("ADDRESS_ORDER_CALLBACK_TOKEN"),
+        "siteAccessToken": required_env("SITES_SERVICE_ACCESS_TOKEN"),
     }
 
 

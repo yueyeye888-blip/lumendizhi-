@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getDb } from "@/db";
+import { addressOrders } from "@/db/schema";
 import { getAddrsSnapshot } from "@/lib/addrs-catalog";
 import { validatePersonalDetails } from "@/lib/personal-details";
 import { formatPersonalDetailsNotice } from "@/lib/personal-details-notice.mjs";
@@ -7,6 +10,11 @@ import { getTelegramSettings } from "@/lib/telegram-settings";
 
 export const dynamic = "force-dynamic";
 const headers = { "cache-control": "private, no-store" };
+
+function requestNumber() {
+  const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  return `ADDR-${date}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+}
 
 export async function POST(request: Request) {
   const user = await getChatGPTUser();
@@ -18,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   let profile;
-  let templateName = "";
+  let template: { id: string; name: string };
   try {
     const text = await request.text();
     if (new TextEncoder().encode(text).byteLength > 8192) {
@@ -26,15 +34,40 @@ export async function POST(request: Request) {
     }
     const payload = JSON.parse(text) as { profile?: unknown; template?: unknown };
     profile = validatePersonalDetails(payload.profile);
-    const template = validateSubmittedTemplate(payload.template, getAddrsSnapshot().items);
-    templateName = template.name;
+    template = validateSubmittedTemplate(payload.template, getAddrsSnapshot().items);
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "提交内容无效" }, { status: 400, headers });
   }
 
+  const db = getDb();
+  const row: typeof addressOrders.$inferInsert = {
+    id: crypto.randomUUID(),
+    requestNo: requestNumber(),
+    userId: user.userId,
+    userEmail: user.email.toLowerCase(),
+    userName: user.displayName,
+    templateId: template.id,
+    templateName: template.name,
+    subjectName: profile.fullName,
+    recipientEmail: profile.recipientEmail.toLowerCase(),
+    status: "queued",
+    statusMessage: "资料已提交，等待自动处理",
+  };
+  await db.insert(addressOrders).values(row);
+
+  const failOrder = async (message: string) => {
+    await db.update(addressOrders).set({
+      status: "failed",
+      statusMessage: message,
+      error: message,
+      updatedAt: new Date().toISOString(),
+    }).where(eq(addressOrders.id, row.id));
+  };
+
   const settings = await getTelegramSettings().catch(() => null);
   if (!settings) {
-    return Response.json({ error: "管理员尚未配置 Telegram 通知，暂时无法提交" }, { status: 503, headers });
+    await failOrder("Telegram 通知尚未配置，请联系管理员");
+    return Response.json({ ok: true, requestNo: row.requestNo, message: "已提交，等待管理员处理" }, { status: 202, headers });
   }
 
   try {
@@ -42,14 +75,16 @@ export async function POST(request: Request) {
       method: "POST",
       signal: AbortSignal.timeout(15000),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: settings.chatId, text: formatPersonalDetailsNotice(profile, user.email, templateName) }),
+      body: JSON.stringify({ chat_id: settings.chatId, text: formatPersonalDetailsNotice(profile, user.email, template.name, row.requestNo) }),
     });
     const result = await response.json() as { ok?: boolean };
     if (!response.ok || !result.ok) {
-      return Response.json({ error: "通知发送失败，请稍后重试" }, { status: 502, headers });
+      await failOrder("Telegram 通知发送失败，请联系管理员重试");
+      return Response.json({ ok: true, requestNo: row.requestNo, message: "已提交，但自动处理暂未启动" }, { status: 202, headers });
     }
-    return Response.json({ ok: true, message: "已提交，管理员已收到通知" }, { headers });
+    return Response.json({ ok: true, requestNo: row.requestNo, message: "已提交，正在自动处理" }, { status: 202, headers });
   } catch {
-    return Response.json({ error: "通知发送失败，请稍后重试" }, { status: 502, headers });
+    await failOrder("Telegram 通知发送失败，请联系管理员重试");
+    return Response.json({ ok: true, requestNo: row.requestNo, message: "已提交，但自动处理暂未启动" }, { status: 202, headers });
   }
 }

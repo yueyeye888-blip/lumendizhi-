@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   isMessageAuthorized,
@@ -7,6 +10,8 @@ import {
   parseAllowedChatIds,
   statusChatIdFor,
 } from "../lib/telegram.mjs";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
 
 test("normalizes the Telegram chat allowlist", () => {
   assert.deepEqual([...parseAllowedChatIds("123, -456,invalid")], ["123", "-456"]);
@@ -19,14 +24,14 @@ test("extracts a text message without retaining unrelated fields", () => {
       message: {
         message_id: 9,
         chat: { id: -456 },
-        from: { id: 9000000001, is_bot: true },
+        from: { id: 9295969331, is_bot: true },
         text: "hello",
       },
     }),
     {
       chatId: "-456",
       messageId: 9,
-      senderId: "9000000001",
+      senderId: "9295969331",
       senderIsBot: true,
       text: "hello",
     }
@@ -39,18 +44,18 @@ test("ignores Telegram updates without text", () => {
 
 test("authorizes a trusted bot sender and routes status to the owner", () => {
   const message = {
-    chatId: "9000000001",
-    senderId: "9000000001",
+    chatId: "9295969331",
+    senderId: "9295969331",
     senderIsBot: true,
   };
   const config = {
-    allowedChatIds: new Set(["8000000001"]),
-    trustedSenderBotIds: new Set(["9000000001"]),
-    notifyChatId: "8000000001",
+    allowedChatIds: new Set(["8018345095"]),
+    trustedSenderBotIds: new Set(["9295969331"]),
+    notifyChatId: "8018345095",
   };
 
   assert.equal(isMessageAuthorized(message, config), true);
-  assert.equal(statusChatIdFor(message, config), "8000000001");
+  assert.equal(statusChatIdFor(message, config), "8018345095");
 });
 
 test("rejects an untrusted bot sender", () => {
@@ -60,10 +65,19 @@ test("rejects an untrusted bot sender", () => {
     senderIsBot: true,
   };
   const config = {
-    allowedChatIds: new Set(["8000000001"]),
-    trustedSenderBotIds: new Set(["9000000001"]),
-    notifyChatId: "8000000001",
+    allowedChatIds: new Set(["8018345095"]),
+    trustedSenderBotIds: new Set(["9295969331"]),
+    notifyChatId: "8018345095",
   };
 
   assert.equal(isMessageAuthorized(message, config), false);
+});
+
+test("forwards trusted submission text and reports payment details", async () => {
+  const source = await readFile(path.join(testDir, "..", "telegram-bot.mjs"), "utf8");
+  assert.ok(source.includes("await reply(config, statusChatId, message.text)"));
+  assert.ok(source.includes('status: "payment_pending"'));
+  assert.ok(source.includes("paymentAddress"));
+  assert.ok(source.includes('"OAI-Sites-Authorization"'));
+  assert.ok(source.includes("流程已停在支付页面，尚未付款"));
 });

@@ -8,5 +8,8 @@
   ],
   "notifyChatId": "YOUR_ADMIN_CHAT_ID",
   "targetUrl": "https://addrs.xyz",
-  "cdpPort": 9333
+  "cdpPort": 9333,
+  "orderCallbackUrl": "https://YOUR_SITE.example/api/address-orders/callback",
+  "orderCallbackToken": "PASTE_A_RANDOM_64_HEX_CALLBACK_TOKEN_HERE",
+  "siteAccessToken": "PASTE_SITES_SERVICE_ACCESS_TOKEN_HERE"
 }

@@ -10,6 +10,8 @@
 - 最近填表截图：`C:\SafeTGDemo\demo-preview.png`
 - Chrome Profile：当前 Windows 用户目录下的 `safe_tg_demo_profile`
 
+`runtime-config.json` 还保存订单回调地址、回调令牌和 Sites 服务访问令牌。状态脚本只显示它们是否存在，不输出内容。
+
 ## 状态检查
 
 ```powershell
@@ -44,6 +46,10 @@ Invoke-RestMethod http://127.0.0.1:9333/json/list
 ```
 
 CDP 只监听本机端口，不需要在防火墙中向公网开放。
+
+## addrs.xyz 人机验证
+
+如果日志或员工订单页显示“人机验证失败”，请在服务器的自动化 Chrome 窗口中按 addrs.xyz 页面提示人工完成验证，再重新提交资料。不要修改脚本绕过第三方验证码或风控。
 
 ## 日志轮转
 
