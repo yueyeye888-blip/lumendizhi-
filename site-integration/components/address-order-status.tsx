@@ -17,21 +17,21 @@ type AddressOrder = {
 };
 
 const STEPS = ["资料提交", "自动填表", "等待处理", "处理完成", "邮箱交付"];
-const TERMINAL = new Set(["delivered", "failed"]);
+const TERMINAL = new Set(["payment_confirmed", "delivered", "failed"]);
 
 function stepFor(status: string) {
   if (status === "queued") return 1;
   if (status === "filling") return 2;
   if (status === "payment_pending") return 3;
-  if (status === "payment_confirmed" || status === "generating") return 4;
-  if (status === "delivered") return 5;
+  if (status === "generating") return 4;
+  if (status === "payment_confirmed" || status === "delivered") return 5;
   return 1;
 }
 
 function displayFor(order: AddressOrder) {
   if (order.status === "failed") return { title: "订单处理失败", detail: order.error || order.statusMessage || "请联系管理员处理", tone: "error" };
   if (order.status === "payment_pending") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
-  if (order.status === "payment_confirmed") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
+  if (order.status === "payment_confirmed") return { title: "已发送到邮箱", detail: "文件已发送，请同时检查垃圾邮件和订阅邮件。", tone: "ready" };
   if (order.status === "generating") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
   if (order.status === "delivered") return { title: "已发送到邮箱", detail: "文件已发送，请同时检查垃圾邮件和订阅邮件。", tone: "ready" };
   if (order.status === "filling") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };

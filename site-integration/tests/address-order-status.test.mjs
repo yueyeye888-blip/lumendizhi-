@@ -16,6 +16,13 @@ test("employee order page uses processing language and hides payment details", a
   assert.ok(!source.includes("收款地址"));
 });
 
+test("payment confirmation completes email delivery in the employee order page", async () => {
+  const source = await readFile(path.join(root, "components", "address-order-status.tsx"), "utf8");
+  assert.ok(source.includes('new Set(["payment_confirmed", "delivered", "failed"])'));
+  assert.ok(source.includes('status === "payment_confirmed" || status === "delivered") return 5'));
+  assert.ok(source.includes('order.status === "payment_confirmed") return { title: "已发送到邮箱"'));
+});
+
 test("employee order API does not expose payment destination", async () => {
   const source = await readFile(path.join(root, "app", "api", "address-orders", "[requestNo]", "route.ts"), "utf8");
   assert.ok(!source.includes("row.externalOrderUrl"));
