@@ -1,0 +1,12 @@
+{
+  "telegramBotToken": "PASTE_RECEIVER_BOT_TOKEN_HERE",
+  "allowedChatIds": [
+    "YOUR_ALLOWED_CHAT_ID"
+  ],
+  "trustedSenderBotIds": [
+    "YOUR_WEBSITE_SENDER_BOT_NUMERIC_ID"
+  ],
+  "notifyChatId": "YOUR_ADMIN_CHAT_ID",
+  "targetUrl": "https://addrs.xyz",
+  "cdpPort": 9333
+}

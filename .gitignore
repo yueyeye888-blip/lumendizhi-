@@ -1,0 +1,23 @@
+# Secrets and machine-local runtime state
+config/runtime-config.json
+config/*.private.json
+**/runtime-config.json
+**/telegram-offset.json
+**/demo-preview.png
+**/*.log
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Temporary deployment files
+.tmp/
+*.zip
+*.tar.gz

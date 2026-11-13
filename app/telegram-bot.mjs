@@ -1,0 +1,220 @@
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
+import {
+  isMessageAuthorized,
+  messageFromUpdate,
+  parseAllowedChatIds,
+  statusChatIdFor,
+} from "./lib/telegram.mjs";
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+
+async function readJson(filePath, fallback = {}) {
+  try {
+    return JSON.parse(await readFile(filePath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return fallback;
+    throw error;
+  }
+}
+
+async function writeJsonAtomic(filePath, value) {
+  const temporaryPath = `${filePath}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+  await rename(temporaryPath, filePath);
+}
+
+export async function loadConfig() {
+  const configPath = process.env.SAFE_TG_CONFIG_PATH || path.join(root, "runtime-config.json");
+  const fileConfig = await readJson(configPath);
+  const token = process.env.TELEGRAM_BOT_TOKEN || fileConfig.telegramBotToken || "";
+  const allowedChatIds = parseAllowedChatIds(
+    process.env.TELEGRAM_ALLOWED_CHAT_IDS || fileConfig.allowedChatIds || []
+  );
+  const trustedSenderBotIds = parseAllowedChatIds(
+    process.env.TELEGRAM_TRUSTED_SENDER_BOT_IDS || fileConfig.trustedSenderBotIds || []
+  );
+  const notifyChatId = String(
+    process.env.TELEGRAM_NOTIFY_CHAT_ID || fileConfig.notifyChatId || ""
+  ).trim();
+  const targetUrl = process.env.TARGET_URL || fileConfig.targetUrl || "https://addrs.xyz";
+  const cdpPort = Number(process.env.SAFE_DEMO_CDP_PORT || fileConfig.cdpPort || 9333);
+
+  if (!token) throw new Error("缺少 TELEGRAM_BOT_TOKEN");
+  if (trustedSenderBotIds.size && !/^-?\d+$/.test(notifyChatId)) {
+    throw new Error("配置了可信 Bot 发送者时，必须设置 TELEGRAM_NOTIFY_CHAT_ID");
+  }
+  if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) {
+    throw new Error("SAFE_DEMO_CDP_PORT 无效");
+  }
+  const parsedTarget = new URL(targetUrl);
+  if (!['http:', 'https:'].includes(parsedTarget.protocol)) throw new Error("TARGET_URL 必须使用 HTTP(S)");
+
+  return {
+    token,
+    allowedChatIds,
+    trustedSenderBotIds,
+    notifyChatId,
+    targetUrl: parsedTarget.href,
+    cdpPort,
+  };
+}
+
+function telegramApi(config, method, payload, timeoutMs = 40_000) {
+  return fetch(`https://api.telegram.org/bot${config.token}/${method}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(timeoutMs),
+  }).then(async (response) => {
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(`Telegram API ${method} 失败 (${response.status})`);
+    }
+    return body.result;
+  });
+}
+
+async function reply(config, chatId, text, replyToMessageId) {
+  await telegramApi(config, "sendMessage", {
+    chat_id: chatId,
+    text,
+    reply_parameters: replyToMessageId ? { message_id: replyToMessageId } : undefined,
+  });
+}
+
+async function runFill(config, text) {
+  const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "safe-tg-message-"));
+  const messagePath = path.join(temporaryDirectory, "message.txt");
+  try {
+    await writeFile(messagePath, text, { encoding: "utf8", mode: 0o600 });
+    await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [path.join(root, "cdp-fill.mjs"), messagePath], {
+        cwd: root,
+        env: {
+          ...process.env,
+          TARGET_URL: config.targetUrl,
+          SAFE_DEMO_CDP_PORT: String(config.cdpPort),
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      });
+      let output = "";
+      let errorOutput = "";
+      let settled = false;
+      const finish = (callback) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        callback();
+      };
+      const timeout = setTimeout(() => {
+        child.kill();
+        finish(() => reject(new Error("填表进程超过 60 秒，已终止")));
+      }, 60_000);
+      child.stdout.on("data", (chunk) => {
+        output += chunk;
+      });
+      child.stderr.on("data", (chunk) => {
+        errorOutput += chunk;
+      });
+      child.on("error", (error) => finish(() => reject(error)));
+      child.on("close", (code) => {
+        finish(() => {
+          if (code === 0) resolve(output.trim());
+          else reject(new Error(`填表进程失败 (${code}): ${errorOutput.trim().slice(0, 500)}`));
+        });
+      });
+    });
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+async function handleMessage(config, message) {
+  const command = message.text.trim().split(/\s+/, 1)[0].split("@", 1)[0].toLowerCase();
+  if (!message.senderIsBot && (command === "/chatid" || command === "/start")) {
+    await reply(
+      config,
+      message.chatId,
+      `当前 Chat ID：${message.chatId}\n发送“📩 新的个人资料提交”格式消息即可填入网页；程序不会自动提交。`,
+      message.messageId
+    );
+    return;
+  }
+
+  if (!isMessageAuthorized(message, config)) {
+    if (!message.senderIsBot) {
+      await reply(config, message.chatId, `此会话未获授权。Chat ID：${message.chatId}`, message.messageId);
+    }
+    return;
+  }
+
+  const statusChatId = statusChatIdFor(message, config);
+  const replyToMessageId = statusChatId === message.chatId ? message.messageId : undefined;
+
+  try {
+    parsePersonalDetailsNotice(message.text);
+  } catch {
+    await reply(config, statusChatId, "消息格式无法识别，未执行填表。", replyToMessageId);
+    return;
+  }
+
+  await runFill(config, message.text);
+  await reply(config, statusChatId, "资料已填入网页，请人工核对并提交。", replyToMessageId);
+}
+
+export async function runBot() {
+  const config = await loadConfig();
+  const statePath = process.env.SAFE_TG_STATE_PATH || path.join(root, "telegram-offset.json");
+  const state = await readJson(statePath, { offset: 0 });
+  let offset = Number.isSafeInteger(state.offset) ? state.offset : 0;
+  let stopped = false;
+  let retryDelay = 1_000;
+
+  process.once("SIGINT", () => { stopped = true; });
+  process.once("SIGTERM", () => { stopped = true; });
+  console.log(`[telegram-bot] started; allowed chats: ${config.allowedChatIds.size}`);
+
+  while (!stopped) {
+    try {
+      const updates = await telegramApi(config, "getUpdates", {
+        offset,
+        timeout: 30,
+        allowed_updates: ["message", "channel_post"],
+      });
+      retryDelay = 1_000;
+
+      for (const update of updates) {
+        const message = messageFromUpdate(update);
+        try {
+          if (message) await handleMessage(config, message);
+        } catch (error) {
+          console.error(`[telegram-bot] update ${update.update_id} failed: ${error.message}`);
+          if (message && isMessageAuthorized(message, config)) {
+            const statusChatId = statusChatIdFor(message, config);
+            const replyToMessageId = statusChatId === message.chatId ? message.messageId : undefined;
+            await reply(config, statusChatId, "填表失败，请检查服务器日志后重试。", replyToMessageId)
+              .catch(() => {});
+          }
+        } finally {
+          offset = update.update_id + 1;
+          await writeJsonAtomic(statePath, { offset });
+        }
+      }
+    } catch (error) {
+      console.error(`[telegram-bot] polling failed: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      retryDelay = Math.min(retryDelay * 2, 30_000);
+    }
+  }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await runBot();
+}

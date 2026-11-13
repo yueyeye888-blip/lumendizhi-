@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test receiver and CDP mapping
+        working-directory: app
+        run: npm test
+      - name: Test site notice format
+        run: node --test site-integration/tests/*.test.mjs

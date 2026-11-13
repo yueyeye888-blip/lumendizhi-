@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TG 资料同步 · 安全演示</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="watermark" aria-hidden="true">SAMPLE · NOT VALID</div>
+    <main class="shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">S</span><span>SafeFlow</span></div>
+        <nav aria-label="演示导航">
+          <a class="active" href="#form">资料同步</a>
+          <a href="#audit">审核记录</a>
+          <a href="#settings">隔离设置</a>
+        </nav>
+        <div class="isolation-card">
+          <span class="pulse"></span>
+          <div><strong>隔离模式</strong><small>Chrome 9333 · 本机 8765</small></div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <header>
+          <div><p class="eyebrow">INTERNAL DEMO</p><h1>TG 资料同步演示</h1></div>
+          <span class="badge">SAMPLE / NOT VALID</span>
+        </header>
+
+        <section id="sync_status" class="status" data-state="waiting" aria-live="polite">
+          <span class="status-icon">✓</span>
+          <div><strong id="sync_status_text">等待虚构测试消息…</strong><small>最后同步：<span id="sync_time">尚未运行</span></small></div>
+        </section>
+
+        <section class="panel" id="form">
+          <div class="panel-heading">
+            <div><h2>个人资料</h2><p>字段只在本机页面展示，不会发送、付款或生成正式文件。</p></div>
+            <span class="readonly-pill">仅演示</span>
+          </div>
+
+          <form autocomplete="off" onsubmit="return false">
+            <label class="wide"><span>姓名</span><input id="full_name" placeholder="等待同步" readonly /></label>
+            <div class="section-label">三行地址</div>
+            <label><span>地址第 1 行</span><input id="address_line_1" placeholder="等待同步" readonly /></label>
+            <label><span>地址第 2 行</span><input id="address_line_2" placeholder="等待同步" readonly /></label>
+            <label class="wide"><span>地址第 3 行</span><input id="address_line_3" placeholder="等待同步" readonly /></label>
+            <label class="wide"><span>接收邮箱</span><input id="recipient_email" type="email" placeholder="等待同步" readonly /></label>
+          </form>
+
+          <div class="safe-actions">
+            <button type="button" disabled>提交已禁用</button>
+            <p>此演示没有外部提交接口，不连接任何第三方文档平台。</p>
+          </div>
+        </section>
+
+        <section class="audit-grid" id="audit">
+          <article><span>01</span><div><strong>消息识别</strong><p>只接受“新的个人资料提交”格式。</p></div></article>
+          <article><span>02</span><div><strong>字段校验</strong><p>校验姓名、三行地址与邮箱长度。</p></div></article>
+          <article><span>03</span><div><strong>本地填入</strong><p>只填入此安全演示页，保留人工审核。</p></div></article>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
