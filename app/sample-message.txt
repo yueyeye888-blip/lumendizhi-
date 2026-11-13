@@ -7,4 +7,6 @@
 第 2 行地址：Testville
 第 3 行地址：ZZ 00000, Exampleland
 
+模版：A2A
+
 接收邮箱：alice@example.test

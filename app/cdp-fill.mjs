@@ -69,8 +69,36 @@ if (!target.url || !target.url.startsWith(targetOrigin)) {
 }
 
 const payload = JSON.stringify(profile);
-const expression = `(() => {
+const expression = `(async () => {
   const profile = ${payload};
+
+  const templateCard = Array.from(document.querySelectorAll('.template-card'))
+    .find((element) => element.dataset.template === profile.template);
+  if (!templateCard) {
+    return {
+      ok: false,
+      templateSelected: false,
+      selectedTemplate: '',
+      error: 'addrs.xyz 中找不到模版“' + profile.template + '”',
+      filledCount: 0,
+      filledFields: [],
+      missingFields: [],
+    };
+  }
+  templateCard.click();
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const selectedTemplate = document.querySelector('#template')?.value || '';
+  if (selectedTemplate !== profile.template) {
+    return {
+      ok: false,
+      templateSelected: false,
+      selectedTemplate,
+      error: '模版选择校验失败：期望“' + profile.template + '”，当前“' + (selectedTemplate || '未选择') + '”',
+      filledCount: 0,
+      filledFields: [],
+      missingFields: [],
+    };
+  }
 
   function setNativeValue(element, value) {
     const proto = element instanceof HTMLTextAreaElement
@@ -134,7 +162,7 @@ const expression = `(() => {
     {
       key: 'full_name',
       value: profile.fullName,
-      selectors: ['#full_name', '#fullName', '#name', 'input[name="full_name"]', 'input[name="fullName"]', 'input[name="name"]', 'input[autocomplete="name"]'],
+      selectors: ['#name_input', '#full_name', '#fullName', '#name', 'input[name="full_name"]', 'input[name="fullName"]', 'input[name="name"]', 'input[autocomplete="name"]'],
       patterns: ['姓名', 'full\\s*name', 'recipient\\s*name', 'holder\\s*name', '^name$'],
     },
     {
@@ -158,7 +186,7 @@ const expression = `(() => {
     {
       key: 'recipient_email',
       value: profile.recipientEmail,
-      selectors: ['#recipient_email', '#recipientEmail', '#email', 'input[type="email"]', 'input[name="recipient_email"]', 'input[name="recipientEmail"]', 'input[name="email"]', 'input[autocomplete="email"]'],
+      selectors: ['#email_input', '#recipient_email', '#recipientEmail', '#email', 'input[type="email"]', 'input[name="recipient_email"]', 'input[name="recipientEmail"]', 'input[name="email"]', 'input[autocomplete="email"]'],
       patterns: ['接收邮箱', '邮箱', 'email'],
     },
   ];
@@ -209,6 +237,8 @@ const expression = `(() => {
   window.scrollTo({ top: 0, behavior: 'instant' });
   return {
     ok: filled.length > 0,
+    templateSelected: true,
+    selectedTemplate,
     title: document.title,
     url: location.href,
     filledCount: filled.length,
@@ -226,6 +256,9 @@ if (result.exceptionDetails) {
   throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "页面填表脚本执行失败");
 }
 const fillResult = result.result?.value;
+if (!fillResult?.templateSelected) {
+  throw new Error(fillResult?.error || `未能选择模版：${profile.template}`);
+}
 if (!fillResult?.ok) throw new Error("目标页面没有找到可填写字段");
 const essentialFieldsPresent =
   fillResult.filledFields.includes("full_name") &&

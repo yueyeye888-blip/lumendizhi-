@@ -22,3 +22,14 @@ test("targets the current visible addrs.xyz address fields", async () => {
   assert.ok(source.includes(".filter(isUsableField)"));
   assert.ok(source.includes("if (el && isUsableField(el)) return el;"));
 });
+
+test("selects and verifies the requested addrs.xyz template before filling fields", async () => {
+  const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
+
+  assert.ok(source.includes("document.querySelectorAll('.template-card')"));
+  assert.ok(source.includes("element.dataset.template === profile.template"));
+  assert.ok(source.includes("templateCard.click()"));
+  assert.ok(source.includes("document.querySelector('#template')?.value"));
+  assert.ok(source.includes("templateSelected: true"));
+  assert.ok(source.indexOf("templateCard.click()") < source.indexOf("const fieldDefs"));
+});

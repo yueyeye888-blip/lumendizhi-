@@ -5,7 +5,11 @@
 ## 文件
 
 - `app/api/personal-details/submit/route.ts`：登录用户提交资料后，通过 Telegram Bot API 发送固定格式消息。
+- `app/api/supplier-templates/route.ts`：提供当前 addrs.xyz 模版目录快照。
 - `app/api/settings/telegram/route.ts`：管理员读取和保存发送 Bot 配置。
+- `components/personal-details-form.tsx`：要求先选模版，并把模版 ID/名称随资料提交。
+- `components/supplier-template-library.tsx`：把当前所选模版传给资料表单。
+- `lib/addrs-catalog.ts` 与 `lib/submitted-template.mjs`：目录快照读取及服务端模版一致性校验。
 - `lib/personal-details-notice.mjs`：唯一的消息格式化函数。
 - `lib/telegram-settings.ts`：读取数据库设置，并允许生产环境 `TELEGRAM_CHAT_ID` 覆盖接收方。
 - `tests/personal-details-notice.test.mjs`：确保网站输出与 Windows 解析器协议一致。
@@ -32,4 +36,5 @@ Windows notifyChatId = 管理员个人 Chat ID
 2. 网站能访问 `api.telegram.org`。
 3. `TELEGRAM_CHAT_ID` 使用 `@receiver_bot` 或合法数字 Chat ID。
 4. Windows 接收器信任网站发送 Bot 的数字 ID。
-5. 使用虚构资料测试，并确认网页只填入、不提交。
+5. 网站未选模版时不能提交，服务端也会拒绝缺失或被篡改的模版。
+6. 使用虚构资料测试，并确认 addrs.xyz 先选中同名模版、再填入资料且不提交。

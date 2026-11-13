@@ -1,6 +1,6 @@
 # Lumen 地址资料自动填入系统
 
-这是当前地址资料生成/传递/自动填表链路的可迁移备份。它接收 Telegram 中固定格式的个人资料消息，解析后通过 Chrome DevTools Protocol 将姓名、三行地址和接收邮箱填入 `https://addrs.xyz`。
+这是当前地址资料生成/传递/自动填表链路的可迁移备份。它接收 Telegram 中固定格式的个人资料与所选模版，解析后通过 Chrome DevTools Protocol 先选中 `https://addrs.xyz` 的对应模版，再填入姓名、三行地址和接收邮箱。
 
 程序只负责填入字段，**不会点击网页提交按钮，也不会自动购买或生成订单**。
 
@@ -13,7 +13,7 @@ Lumen 网页提交
   → Windows Telegram 长轮询服务
   → 消息格式与来源校验
   → Chrome CDP (9333)
-  → addrs.xyz 自动填入
+  → addrs.xyz 同步选择模版并自动填入
   → 处理结果通知管理员
 ```
 
@@ -85,7 +85,7 @@ notepad .\config\runtime-config.json
 # 查看任务、进程、CDP、日志及脱敏配置状态
 .\scripts\status-windows.ps1
 
-# 连同 10 项回归测试一起检查
+# 连同 12 项回归测试一起检查
 .\scripts\status-windows.ps1 -RunTests
 
 # 启动/停止整套服务
@@ -119,4 +119,4 @@ cd app
 npm test
 ```
 
-当前测试覆盖消息解析、白名单/可信 Bot 鉴权、状态通知路由、换行转义和 `addrs.xyz` 当前字段映射。
+当前测试覆盖消息解析、必填模版、白名单/可信 Bot 鉴权、状态通知路由、换行转义、`addrs.xyz` 模版选择顺序和当前字段映射。

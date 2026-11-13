@@ -76,16 +76,18 @@ python3 tools/deploy_remote.py
 第 1 行地址：123 Example Street
 第 2 行地址：Testville
 第 3 行地址：ZZ 00000, Exampleland
+模版：A2A
 接收邮箱：alice@example.test
 ```
 
 验证：
 
 1. Chrome 打开 `addrs.xyz`；
-2. 姓名、三行地址和邮箱均已填入；
-3. Telegram 管理员收到“资料已填入网页”；
-4. 网页没有自动提交；
-5. `C:\SafeTGDemo\demo-preview.png` 已更新。
+2. A2A 模版已选中；
+3. 姓名、三行地址和邮箱均已填入；
+4. Telegram 管理员收到“资料已填入网页”；
+5. 网页没有自动提交；
+6. `C:\SafeTGDemo\demo-preview.png` 已更新。
 
 ## 6. 回滚
 

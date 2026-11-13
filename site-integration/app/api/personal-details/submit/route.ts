@@ -1,6 +1,8 @@
 import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getAddrsSnapshot } from "@/lib/addrs-catalog";
 import { validatePersonalDetails } from "@/lib/personal-details";
 import { formatPersonalDetailsNotice } from "@/lib/personal-details-notice.mjs";
+import { validateSubmittedTemplate } from "@/lib/submitted-template.mjs";
 import { getTelegramSettings } from "@/lib/telegram-settings";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +18,16 @@ export async function POST(request: Request) {
   }
 
   let profile;
+  let templateName = "";
   try {
     const text = await request.text();
     if (new TextEncoder().encode(text).byteLength > 8192) {
       return Response.json({ error: "提交内容过大" }, { status: 413, headers });
     }
-    profile = validatePersonalDetails((JSON.parse(text) as { profile?: unknown }).profile);
+    const payload = JSON.parse(text) as { profile?: unknown; template?: unknown };
+    profile = validatePersonalDetails(payload.profile);
+    const template = validateSubmittedTemplate(payload.template, getAddrsSnapshot().items);
+    templateName = template.name;
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "提交内容无效" }, { status: 400, headers });
   }
@@ -36,7 +42,7 @@ export async function POST(request: Request) {
       method: "POST",
       signal: AbortSignal.timeout(15000),
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: settings.chatId, text: formatPersonalDetailsNotice(profile, user.email) }),
+      body: JSON.stringify({ chat_id: settings.chatId, text: formatPersonalDetailsNotice(profile, user.email, templateName) }),
     });
     const result = await response.json() as { ok?: boolean };
     if (!response.ok || !result.ok) {

@@ -6,7 +6,8 @@
 
 - 默认目标网站：`https://addrs.xyz`（可通过环境变量 `TARGET_URL` 覆盖）。
 - 默认使用独立 Chrome 调试端口 `9333`（可通过环境变量 `SAFE_DEMO_CDP_PORT` 覆盖）。
-- 自动匹配目标页面的姓名、三行地址（或合并地址框）及接收邮箱输入框，并触发 React/Vue 兼容的原生 `input`/`change` 事件。
+- 先按 Telegram 消息中的“模版”名称选中 addrs.xyz 对应模版，并校验页面隐藏字段 `#template`；匹配失败时不会继续填写。
+- 模版校验通过后，自动匹配目标页面的姓名、三行地址（或合并地址框）及接收邮箱输入框，并触发 React/Vue 兼容的原生 `input`/`change` 事件。
 - 只有 `TELEGRAM_ALLOWED_CHAT_IDS` 白名单中的会话可以触发填表。
 - 网页发送 Bot 可通过 Bot-to-Bot Communication 把提交正文发给专用接收 Bot；接收端仅信任 `TELEGRAM_TRUSTED_SENDER_BOT_IDS`。
 - 来自可信 Bot 的处理结果会发到 `TELEGRAM_NOTIFY_CHAT_ID`，不回复发送 Bot，避免循环对话。
@@ -27,22 +28,7 @@ SAFE_DEMO_CDP_PORT=9333 TARGET_URL=https://addrs.xyz npm run demo
 
 群组使用时需要先把 Bot 加入群组，并在 `@BotFather` 的 `/setprivacy` 中关闭隐私模式，否则 Bot 通常只能收到命令和提及它的消息。频道使用时需要把 Bot 加为管理员，才能接收频道消息和发送状态回复。建议为本工具创建专用 Bot，不要复用已经配置 Webhook 的 Bot。
 
-部署到 Windows 服务器前，在本机设置连接信息；不要把密码写入脚本或提交到版本库：
-
-```bash
-export SAFE_DEMO_HOST="服务器 IP"
-export SAFE_DEMO_USER="administrator"
-export SAFE_DEMO_PASSWORD="服务器密码"
-export TELEGRAM_BOT_TOKEN="从 BotFather 获得的 Token"
-# 首次部署可以留空；取得 /chatid 回复后再设置并重新部署
-export TELEGRAM_ALLOWED_CHAT_IDS="123456789,-1001234567890"
-export TELEGRAM_TRUSTED_SENDER_BOT_IDS="网页发送 Bot 的数字 ID"
-export TELEGRAM_NOTIFY_CHAT_ID="接收处理结果的个人 Chat ID"
-export TARGET_URL="https://addrs.xyz"
-python3 ../deploy_safe_tg_demo.py
-```
-
-部署脚本会把 Token 写入服务器的 `C:\SafeTGDemo\runtime-config.json`，并限制为当前 Windows 账户和 SYSTEM 可访问。Token 不会写入项目源码或计划任务命令行。
+完整部署请从仓库根目录运行 `bootstrap.ps1`，远程 WinRM 部署使用 `tools/deploy_remote.py`。两种方式都会把 Token 写入服务器的 `C:\SafeTGDemo\runtime-config.json`，并限制为当前 Windows 账户和 SYSTEM 可访问；Token 不会写入项目源码或计划任务命令行。详见仓库根目录 README 与 `docs/`。
 
 Bot 接受的消息格式：
 
@@ -52,19 +38,10 @@ Bot 接受的消息格式：
 第 1 行地址：123 Example Street
 第 2 行地址：Testville
 第 3 行地址：ZZ 00000, Exampleland
+模版：A2A
 接收邮箱：alice@example.test
 ```
 
 处理成功后，Bot 回复“资料已填入网页，请人工核对并提交”。格式错误、非白名单会话或填表失败都不会提交表单。
 
-只检查并启动已经部署的 Bot（不会执行样例填入）：
-
-```bash
-python3 ../deploy_safe_tg_demo.py --run-only
-```
-
-确实需要使用 `sample-message.txt` 做一次样例填入时，显式增加：
-
-```bash
-python3 ../deploy_safe_tg_demo.py --run-only --demo-fill
-```
+已部署服务器可在仓库根目录运行 `scripts/update-windows.ps1`，它会保留现有私密配置并重新安装代码。使用 `scripts/status-windows.ps1 -RunTests` 检查服务；需要虚构样例填入时执行更新脚本的 `-DemoFill` 参数。

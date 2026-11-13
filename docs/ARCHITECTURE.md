@@ -52,7 +52,7 @@
 ### `lib/parser.mjs`
 
 - 只接受带有 `📩 新的个人资料提交` 标题的消息。
-- 提取姓名、三行地址和接收邮箱。
+- 提取姓名、三行地址、模版和接收邮箱；缺少模版时拒绝处理。
 - 限制字段长度，清理控制字符并验证邮箱格式。
 
 ### `cdp-fill.mjs`
@@ -60,7 +60,8 @@
 - 连接本机 Chrome CDP 端口，默认 `9333`。
 - 优先选择目标域名标签页，没有时创建新标签页。
 - 只操作可见、非禁用、非隐藏字段。
-- 支持 `addrs.xyz` 当前 `address_line1/2/3` 字段，也保留通用 label/placeholder 回退。
+- 先按 `.template-card[data-template]` 精确选择消息中的模版，再用 `#template` 校验选择结果；失败时不填资料。
+- 模版校验通过后，支持 `addrs.xyz` 当前 `name_input`、`address_line1/2/3`、`email_input` 字段，也保留通用 label/placeholder 回退。
 - 使用原生 value setter 并触发 `input`/`change`，兼容 React/Vue 控件。
 - 只填入，不查找或点击提交按钮。
 - 将当前视口截图保存为 `demo-preview.png`，方便远程核对。
