@@ -47,9 +47,18 @@ test("creates and confirms a BSC payment order after filling", async () => {
   assert.ok(source.indexOf("#create_order_button") < source.indexOf("#order_confirm_submit"));
 });
 
-test("returns to the addrs.xyz home form when a previous order page is open", async () => {
+test("starts every order from a newly loaded addrs.xyz form", async () => {
   const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
-  assert.ok(source.includes("const hasOrderForm"));
-  assert.ok(source.includes("!hasOrderForm"));
+  assert.ok(source.includes("Always start a new document"));
   assert.ok(source.includes('Page.navigate'));
+});
+
+test("waits for a fresh Turnstile response and never reuses a failed token", async () => {
+  const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
+  assert.ok(source.includes("Turnstile responses are short-lived and single-use"));
+  assert.ok(source.includes("#order_turnstile"));
+  assert.ok(source.includes('input[name=\"cf-turnstile-response\"]'));
+  assert.ok(source.includes("verificationReady"));
+  assert.ok(source.includes('Page.reload'));
+  assert.ok(source.includes("下次提交将使用新的 Turnstile 令牌"));
 });

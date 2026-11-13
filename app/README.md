@@ -7,6 +7,7 @@
 - 默认目标网站：`https://addrs.xyz`（可通过环境变量 `TARGET_URL` 覆盖）。
 - 默认使用独立 Chrome 调试端口 `9333`（可通过环境变量 `SAFE_DEMO_CDP_PORT` 覆盖）。
 - 先按 Telegram 消息中的“模版”名称选中 addrs.xyz 对应模版，并校验页面隐藏字段 `#template`；匹配失败时不会继续填写。
+- 每个新订单都会重新加载 addrs.xyz，等待新的 Cloudflare Turnstile 响应后再填表；验证失败会刷新页面，不复用旧令牌。如果 Turnstile 要求交互，必须在服务器 Chrome 中人工完成，程序不会绕过验证。
 - 模版校验通过后，自动匹配目标页面的姓名、三行地址（或合并地址框）及接收邮箱输入框，并触发 React/Vue 兼容的原生 `input`/`change` 事件。
 - 只有 `TELEGRAM_ALLOWED_CHAT_IDS` 白名单中的会话可以触发填表。
 - 网页发送 Bot 可通过 Bot-to-Bot Communication 把提交正文发给专用接收 Bot；接收端仅信任 `TELEGRAM_TRUSTED_SENDER_BOT_IDS`。

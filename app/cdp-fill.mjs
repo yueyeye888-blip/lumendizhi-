@@ -71,16 +71,32 @@ await new Promise((resolve, reject) => {
 await call("Page.enable");
 await call("Runtime.enable");
 
-const hasOrderForm = await evaluate("Boolean(document.querySelector('.template-card') && document.querySelector('#create_order_button'))").catch(() => false);
-if (!target.url?.startsWith(targetOrigin) || !hasOrderForm) {
-  await call("Page.navigate", { url: targetUrl });
-  const ready = await waitUntil(
-    () => evaluate("document.readyState === 'complete' && Boolean(document.querySelector('.template-card') && document.querySelector('#create_order_button'))"),
-    60,
-  );
-  if (!ready) throw new Error("addrs.xyz 首页加载超时");
-  await sleep(500);
+// Turnstile responses are short-lived and single-use. Always start a new document so
+// a previous failed or completed attempt cannot reuse a stale verification token.
+await call("Page.navigate", { url: targetUrl });
+const ready = await waitUntil(
+  () => evaluate("document.readyState === 'complete' && Boolean(document.querySelector('.template-card') && document.querySelector('#create_order_button'))"),
+  60,
+);
+if (!ready) throw new Error("addrs.xyz 首页加载超时");
+
+const verificationReady = await waitUntil(async () => {
+  const state = await evaluate(`(() => {
+    const widget = document.querySelector('#order_turnstile');
+    const scope = widget?.parentElement || widget || document;
+    const response = scope.querySelector('input[name="cf-turnstile-response"]');
+    return {
+      widgetPresent: Boolean(widget),
+      widgetVisible: Boolean(widget && widget.getClientRects().length),
+      responseLength: typeof response?.value === 'string' ? response.value.length : 0,
+    };
+  })()`);
+  return state.widgetPresent && state.responseLength > 0 ? state : null;
+}, 180, 500);
+if (!verificationReady) {
+  throw new Error("人机验证尚未完成，请在服务器 Chrome 中完成 Turnstile 后重试");
 }
+await sleep(500);
 
 const payload = JSON.stringify(profile);
 const fillResult = await evaluate(`(async () => {
@@ -159,6 +175,7 @@ const fillResult = await evaluate(`(async () => {
       resolvedFields.set(def.key, field);
       filled.push(def.key);
     } else missing.push(def.key);
+    await new Promise((resolve) => setTimeout(resolve, 80));
   }
 
   const line1Field = resolvedFields.get('address_line_1');
@@ -198,6 +215,17 @@ if (!essentialFieldsPresent) throw new Error(`目标页面缺少必要字段：$
 if (!/BEP20|BNB Smart Chain/i.test(fillResult.paymentMethod || "")) {
   throw new Error(`支付网络不是 BSC/BEP20：${fillResult.paymentMethod || "未识别"}`);
 }
+await sleep(700);
+
+const verificationStillReady = await evaluate(`(() => {
+  const widget = document.querySelector('#order_turnstile');
+  const scope = widget?.parentElement || widget || document;
+  const response = scope.querySelector('input[name="cf-turnstile-response"]');
+  return Boolean(response && typeof response.value === 'string' && response.value.length > 0);
+})()`);
+if (!verificationStillReady) {
+  throw new Error("人机验证令牌在提交前失效，请在服务器 Chrome 中完成验证后重试");
+}
 
 const createResult = await evaluate(`(() => {
   const button = document.querySelector('#create_order_button');
@@ -218,8 +246,14 @@ const modalReady = await waitUntil(async () => {
 }, 60);
 if (!modalReady) {
   const statusText = await evaluate("(document.querySelector('#order_form_status')?.textContent || '').trim()").catch(() => "");
+  if (/人机验证失败/.test(statusText)) {
+    await call("Page.reload", { ignoreCache: true }).catch(() => {});
+    throw new Error(`${statusText}；页面已刷新，下次提交将使用新的 Turnstile 令牌`);
+  }
   throw new Error(statusText || "创建订单校验超时，未出现确认弹窗");
 }
+
+await sleep(500);
 
 const confirmResult = await evaluate(`(() => {
   const button = document.querySelector('#order_confirm_submit');

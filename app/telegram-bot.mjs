@@ -160,8 +160,8 @@ export async function runFill(config, text) {
       };
       const timeout = setTimeout(() => {
         child.kill();
-        finish(() => reject(new Error("创建支付订单进程超过 120 秒，已终止")));
-      }, 120_000);
+        finish(() => reject(new Error("创建支付订单进程超过 240 秒，已终止")));
+      }, 240_000);
       child.stdout.on("data", (chunk) => {
         output += chunk;
       });

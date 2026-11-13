@@ -89,7 +89,7 @@ notepad .\config\runtime-config.json
 # 查看任务、进程、CDP、日志及脱敏配置状态
 .\scripts\status-windows.ps1
 
-# 连同 23 项回归测试一起检查
+# 连同 24 项回归测试一起检查
 .\scripts\status-windows.ps1 -RunTests
 
 # 启动/停止整套服务
@@ -123,7 +123,7 @@ cd app
 npm test
 ```
 
-当前 23 项测试还覆盖 BSC USDT 合约允许列表、支付金额限制、`dry-run` 禁止签名/广播、`live` 二次启用门禁和 DPAPI 解密脚本。
+当前 24 项测试还覆盖 Turnstile 新令牌等待/失败刷新、BSC USDT 合约允许列表、支付金额限制、`dry-run` 禁止签名/广播、`live` 二次启用门禁和 DPAPI 解密脚本。
 
 ## 本地导入付款钱包
 
