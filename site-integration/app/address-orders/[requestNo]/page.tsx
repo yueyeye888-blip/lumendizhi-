@@ -9,6 +9,10 @@ export default async function AddressOrderPage({
   params: Promise<{ requestNo: string }>;
 }) {
   const { requestNo } = await params;
+  return <AuthenticatedOrderPage requestNo={requestNo} />;
+}
+
+async function AuthenticatedOrderPage({ requestNo }: { requestNo: string }) {
   await requireChatGPTUser(`/address-orders/${encodeURIComponent(requestNo)}`);
   return <AddressOrderStatus requestNo={requestNo} />;
 }
