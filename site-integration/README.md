@@ -18,6 +18,7 @@
 - `lib/personal-details-notice.mjs`：唯一的消息格式化函数。
 - `lib/telegram-settings.ts`：读取数据库设置，并允许生产环境 `TELEGRAM_CHAT_ID` 覆盖接收方。
 - `tests/personal-details-notice.test.mjs`：确保网站输出与 Windows 解析器协议一致。
+- `tests/address-order-status.test.mjs`：确保员工接口和页面不会暴露支付金额、网络、收款地址或 addrs.xyz 支付链接。
 
 这些文件依赖原 Lumen 网站中的身份认证、数据库、加密与资料验证模块，不能作为独立应用直接运行。迁移到新网站时，应将相同逻辑合并到目标项目，而不是单独部署本目录。
 
@@ -48,3 +49,4 @@ Windows siteAccessToken = Sites 专用服务访问令牌
 6. 网站未选模版时不能提交，服务端也会拒绝缺失或被篡改的模版。
 7. 使用虚构资料测试，并确认 addrs.xyz 先选中同名模版、填入资料、创建支付订单后停在支付页，不执行付款。
 8. 员工提交后跳转订单状态页；Windows 回调使用 Sites 服务访问头与订单令牌双重鉴权。
+9. 员工页面只显示处理进度和预计时间；支付信息只发送到管理员 Telegram。

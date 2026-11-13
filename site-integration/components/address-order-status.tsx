@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, CircleAlert, Copy, ExternalLink, LoaderCircle, MapPin } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, LoaderCircle, MapPin } from "lucide-react";
 
 type AddressOrder = {
   requestNo: string;
@@ -11,17 +11,12 @@ type AddressOrder = {
   status: string;
   statusMessage: string | null;
   externalOrderNo: string | null;
-  externalOrderUrl: string | null;
-  paymentAmount: string | null;
-  paymentCurrency: string | null;
-  paymentNetwork: string | null;
-  paymentAddress: string | null;
   error: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-const STEPS = ["资料提交", "自动填表", "等待支付", "付款确认", "邮箱交付"];
+const STEPS = ["资料提交", "自动填表", "等待处理", "处理完成", "邮箱交付"];
 const TERMINAL = new Set(["delivered", "failed"]);
 
 function stepFor(status: string) {
@@ -35,18 +30,17 @@ function stepFor(status: string) {
 
 function displayFor(order: AddressOrder) {
   if (order.status === "failed") return { title: "订单处理失败", detail: order.error || order.statusMessage || "请联系管理员处理", tone: "error" };
-  if (order.status === "payment_pending") return { title: "支付订单已创建", detail: "已停留在支付页面，等待后续付款处理。", tone: "ready" };
-  if (order.status === "payment_confirmed") return { title: "付款已确认", detail: "系统正在等待生成文件。", tone: "ready" };
-  if (order.status === "generating") return { title: "正在生成并发送", detail: "付款已确认，文件正在制作。", tone: "ready" };
+  if (order.status === "payment_pending") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
+  if (order.status === "payment_confirmed") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
+  if (order.status === "generating") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
   if (order.status === "delivered") return { title: "已发送到邮箱", detail: "文件已发送，请同时检查垃圾邮件和订阅邮件。", tone: "ready" };
-  if (order.status === "filling") return { title: "正在自动填写资料", detail: "系统正在选择模版、填写资料并创建支付订单。", tone: "working" };
+  if (order.status === "filling") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
   return { title: "资料已提交", detail: "订单正在排队，页面会自动更新处理状态。", tone: "working" };
 }
 
 export default function AddressOrderStatus({ requestNo }: { requestNo: string }) {
   const [order, setOrder] = useState<AddressOrder | null>(null);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -70,12 +64,6 @@ export default function AddressOrderStatus({ requestNo }: { requestNo: string })
 
   const currentStep = order ? stepFor(order.status) : 1;
   const display = useMemo(() => order ? displayFor(order) : null, [order]);
-  const copyAddress = async () => {
-    if (!order?.paymentAddress) return;
-    await navigator.clipboard.writeText(order.paymentAddress);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
 
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top,#eef4ff_0,#f6f8fc_42%,#edf1f7_100%)] px-4 py-5 text-[#202938] sm:px-8 sm:py-8">
     <div className="mx-auto max-w-7xl">
@@ -110,12 +98,6 @@ export default function AddressOrderStatus({ requestNo }: { requestNo: string })
             {display.tone === "error" && <CircleAlert className="mx-auto text-red-500" size={38} />}
             <h2 className="mt-3 text-xl font-semibold sm:text-3xl">{display.title}</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">{display.detail}</p>
-            {order.status === "payment_pending" && <div className="mx-auto mt-6 grid max-w-3xl gap-3 text-left sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-400">支付金额</p><p className="mt-1 text-xl font-semibold text-[#213d6b]">{order.paymentAmount || "—"} {order.paymentCurrency || ""}</p></div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-400">支付网络</p><p className="mt-1 text-sm font-semibold text-[#213d6b]">{order.paymentNetwork || "—"}</p></div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"><p className="text-xs text-slate-400">收款地址</p><div className="mt-1 flex items-center gap-2"><p className="min-w-0 flex-1 break-all font-mono text-sm text-[#213d6b]">{order.paymentAddress || "—"}</p>{order.paymentAddress && <button onClick={() => void copyAddress()} aria-label="复制收款地址" className="shrink-0 rounded-lg border border-slate-200 p-2 text-slate-500"><Copy size={15} /></button>}</div>{copied && <p className="mt-1 text-xs text-emerald-700">已复制</p>}</div>
-            </div>}
-            {order.externalOrderUrl && <a href={order.externalOrderUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-xl border border-[#cbd8e9] bg-white px-5 py-2.5 text-sm font-medium text-[#315c9f]">查看 addrs.xyz 支付页<ExternalLink size={15} /></a>}
           </>}
         </div>
 
