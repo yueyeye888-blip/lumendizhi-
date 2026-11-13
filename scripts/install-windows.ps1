@@ -326,10 +326,14 @@ if (-not $commonDesktop) { $commonDesktop = "C:\Users\Public\Desktop" }
 New-Item -ItemType Directory -Path $commonDesktop -Force | Out-Null
 $badCopy = Join-Path $commonDesktop "Import Payer Wallet.cmd"
 Remove-Item -LiteralPath $badCopy -Force -ErrorAction SilentlyContinue
-$walletShortcutPath = Join-Path $commonDesktop "Import Payer Wallet.lnk"
+$oldWalletShortcutPath = Join-Path $commonDesktop "Import Payer Wallet.lnk"
+Remove-Item -LiteralPath $oldWalletShortcutPath -Force -ErrorAction SilentlyContinue
+$walletShortcutPath = Join-Path $commonDesktop "导入付款钱包（窗口保持打开）.lnk"
 $walletShell = New-Object -ComObject WScript.Shell
 $walletShortcut = $walletShell.CreateShortcut($walletShortcutPath)
-$walletShortcut.TargetPath = Join-Path $InstallRoot "import-payer-wallet.cmd"
+$walletShortcut.TargetPath = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+$walletScriptPath = Join-Path $InstallRoot "scripts\import-payer-wallet.ps1"
+$walletShortcut.Arguments = '-NoExit -NoProfile -ExecutionPolicy Bypass -File "' + $walletScriptPath + '" -InstallRoot "' + $InstallRoot + '"'
 $walletShortcut.WorkingDirectory = $InstallRoot
 $walletShortcut.Description = "Import the BSC payer wallet using hidden local input"
 $walletShortcut.Save()
@@ -361,4 +365,4 @@ Write-Host "CDP：http://127.0.0.1:$($config.cdpPort)"
 Write-Host "接收器进程 PID：$($botProcess.ProcessId)"
 Write-Host "日志：$InstallRoot\telegram-bot.log"
 Write-Host "安全边界：程序会创建订单并停在支付页，但不会发起链上付款。"
-Write-Host "付款钱包：请在服务器桌面双击 Import Payer Wallet.cmd，以隐藏输入方式本地导入。"
+Write-Host "付款钱包：请在服务器桌面双击‘导入付款钱包（窗口保持打开）’，以隐藏输入方式本地导入。"

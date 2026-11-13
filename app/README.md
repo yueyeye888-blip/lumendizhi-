@@ -24,7 +24,7 @@ SAFE_DEMO_CDP_PORT=9333 TARGET_URL=https://addrs.xyz npm run demo
 
 ## 本地导入付款钱包
 
-部署完成后，在 Windows 服务器桌面双击 `Import Payer Wallet.cmd`，或在服务器本机运行：
+部署完成后，在 Windows 服务器桌面双击 `导入付款钱包（窗口保持打开）` 快捷方式；该入口使用 `PowerShell -NoExit`，脚本出错时窗口也会保留。也可在服务器本机运行：
 
 ```powershell
 C:\SafeTGDemo\import-payer-wallet.cmd

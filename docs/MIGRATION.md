@@ -21,7 +21,7 @@ cd C:\lumendizhi
 
 不要复制旧 Chrome Profile。Profile 可能包含 Cookie、登录会话和其他敏感数据。
 
-也不要复制 `payer-private-key.dpapi`。DPAPI 密文绑定原 Windows 账户，应在新服务器桌面重新运行 `Import Payer Wallet.cmd` 导入新服务器。
+也不要复制 `payer-private-key.dpapi`。DPAPI 密文绑定原 Windows 账户，应在新服务器桌面重新运行 `导入付款钱包（窗口保持打开）` 快捷方式导入。
 
 ## 2. 停止旧服务器
 

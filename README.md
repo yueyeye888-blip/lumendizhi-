@@ -126,6 +126,6 @@ npm test
 
 ## 本地导入付款钱包
 
-安装完成后，在 Windows 服务器桌面双击 `Import Payer Wallet.cmd`。工具只接受隐藏输入，使用 ethers 校验公开地址，再通过当前 Windows 账户的 DPAPI 加密私钥。密文和公开元数据保存在 `C:\SafeTGDemo\secrets`，ACL 只允许当前账户和 SYSTEM。
+安装完成后，在 Windows 服务器桌面双击 `导入付款钱包（窗口保持打开）` 快捷方式。快捷方式以 `PowerShell -NoExit` 运行，发生错误时会保留窗口。工具只接受隐藏输入，使用 ethers 校验公开地址，再通过当前 Windows 账户的 DPAPI 加密私钥。密文和公开元数据保存在 `C:\SafeTGDemo\secrets`，ACL 只允许当前账户和 SYSTEM。
 
 钱包密文与当前 Windows 账户绑定。迁移服务器时不要复制密文，应在新服务器重新运行导入工具。公开充值地址可以记录，私钥和助记词不能进入聊天、GitHub、日志或配置样例。
