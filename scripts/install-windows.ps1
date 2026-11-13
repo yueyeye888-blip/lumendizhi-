@@ -332,8 +332,8 @@ $walletShortcutPath = Join-Path $commonDesktop "导入付款钱包（窗口保�
 $walletShell = New-Object -ComObject WScript.Shell
 $walletShortcut = $walletShell.CreateShortcut($walletShortcutPath)
 $walletShortcut.TargetPath = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
-$walletScriptPath = Join-Path $InstallRoot "scripts\import-payer-wallet.ps1"
-$walletShortcut.Arguments = '-NoExit -NoProfile -ExecutionPolicy Bypass -File "' + $walletScriptPath + '" -InstallRoot "' + $InstallRoot + '"'
+$walletScriptPath = Join-Path $InstallRoot "scripts\open-wallet-importer.ps1"
+$walletShortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $walletScriptPath + '" -InstallRoot "' + $InstallRoot + '"'
 $walletShortcut.WorkingDirectory = $InstallRoot
 $walletShortcut.Description = "Import the BSC payer wallet using hidden local input"
 $walletShortcut.Save()
