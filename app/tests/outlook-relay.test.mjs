@@ -61,3 +61,9 @@ test("stores Outlook tokens with CurrentUser DPAPI instead of source configurati
   assert.match(writer, /outlook-refresh-token\.dpapi/);
   assert.match(reader, /ConvertTo-SecureString/);
 });
+
+test("enables the relay only after Outlook authorization succeeds", async () => {
+  const source = await readFile(path.join(root, "scripts", "open-outlook-authorizer.ps1"), "utf8");
+  assert.match(source, /outlookRelay\.enabled = \$true/);
+  assert.match(source, /Restart-ScheduledTask -TaskName "SafeTGDemoBot"/);
+});
