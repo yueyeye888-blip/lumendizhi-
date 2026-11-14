@@ -8,7 +8,8 @@
     "demo": "node cdp-fill.mjs sample-message.txt",
     "dry-run-flow": "node dry-run-flow.mjs sample-message.txt",
     "wallet-preflight": "node wallet-preflight.mjs",
-    "bot": "node telegram-bot.mjs"
+    "bot": "node telegram-bot.mjs",
+    "outlook-preview": "node send-outlook-preview.mjs"
   },
   "dependencies": {
     "ethers": "6.17.0"

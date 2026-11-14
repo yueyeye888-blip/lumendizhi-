@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   buildBrandedMessage,
+  buildOutlookPreviewPackage,
   loadOutlookRelaySettings,
   matchDeliveryJob,
 } from "../lib/outlook-relay.mjs";
@@ -22,6 +23,19 @@ test("builds a clean branded message without the source platform brand", () => {
   assert.match(message.html, /图片和 PDF · 2 个文件/);
   assert.doesNotMatch(message.html, /Addrs\.xyz/i);
   assert.doesNotMatch(message.text, /Addrs\.xyz/i);
+});
+
+test("builds a branded Outlook preview with a PDF and an image", () => {
+  const preview = buildOutlookPreviewPackage({
+    externalOrderNo: "TEST202611140001",
+    addressLines: ["619 Oak Ave", "Austin", "TX 61397, United States"],
+  }, "越大爷");
+  assert.match(preview.content.subject, /越大爷/);
+  assert.equal(preview.attachments.length, 2);
+  assert.equal(preview.attachments[0].contentType, "application/pdf");
+  assert.match(preview.attachments[0].content.toString("ascii", 0, 8), /^%PDF-/);
+  assert.equal(preview.attachments[1].contentType, "image/svg+xml");
+  assert.match(preview.attachments[1].content.toString("utf8"), /文件生成完成/);
 });
 
 test("matches an inbox message to the original external order", () => {

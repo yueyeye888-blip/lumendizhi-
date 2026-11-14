@@ -347,6 +347,68 @@ export function buildBrandedMessage(job, brandName = "越大爷") {
   return { subject, text: paragraphs.join("\n"), html };
 }
 
+function pdfLiteral(value) {
+  return String(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function buildPreviewPdf(orderNo) {
+  const stream = [
+    "BT",
+    "/F1 24 Tf",
+    "72 720 Td",
+    `(${pdfLiteral("Yue Da Ye - Test Delivery")}) Tj`,
+    "0 -42 Td",
+    "/F1 14 Tf",
+    `(${pdfLiteral(`Order: ${orderNo}`)}) Tj`,
+    "0 -28 Td",
+    `(${pdfLiteral("This PDF is only for checking the delivery email layout.")}) Tj`,
+    "ET",
+  ].join("\n");
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+    "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+    `5 0 obj\n<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream\nendobj\n`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(pdf));
+    pdf += object;
+  }
+  const xrefOffset = Buffer.byteLength(pdf);
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += "0000000000 65535 f \n";
+  for (const offset of offsets.slice(1)) {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return Buffer.from(pdf, "ascii");
+}
+
+export function buildOutlookPreviewPackage(job, brandName = "越大爷") {
+  const content = buildBrandedMessage(job, brandName);
+  const brand = clean(brandName, 80) || "越大爷";
+  const orderNo = clean(job.externalOrderNo, 100);
+  const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#f4f7fb"/><rect x="70" y="70" width="1060" height="660" rx="36" fill="#ffffff" stroke="#dbe4f0" stroke-width="4"/><rect x="70" y="70" width="1060" height="150" rx="36" fill="#1f67db"/><text x="130" y="165" fill="#ffffff" font-size="58" font-family="Arial, Microsoft YaHei, sans-serif" font-weight="700">${escapeHtml(brand)}</text><text x="130" y="335" fill="#1f2937" font-size="62" font-family="Arial, Microsoft YaHei, sans-serif" font-weight="700">文件生成完成</text><text x="130" y="420" fill="#16803c" font-size="38" font-family="Arial, Microsoft YaHei, sans-serif">生成成功</text><text x="130" y="510" fill="#4b5563" font-size="30" font-family="Arial, Microsoft YaHei, sans-serif">此图片用于测试邮件 UI 与附件展示</text><text x="130" y="610" fill="#6b7280" font-size="26" font-family="Arial, sans-serif">Order: ${escapeHtml(orderNo)}</text></svg>`;
+  return {
+    content,
+    attachments: [
+      {
+        name: `${brand}-测试文件.pdf`,
+        contentType: "application/pdf",
+        content: buildPreviewPdf(orderNo),
+      },
+      {
+        name: `${brand}-测试图片.svg`,
+        contentType: "image/svg+xml",
+        content: Buffer.from(svg, "utf8"),
+      },
+    ],
+  };
+}
+
 async function listSourceAttachments(accessToken, messageId) {
   const data = await graphJson(accessToken, "GET", `/me/messages/${encodeURIComponent(messageId)}/attachments?$select=id,name,contentType,size,isInline`);
   const files = (data.value || []).filter((item) => {
@@ -430,6 +492,23 @@ async function sendBrandedMail(accessToken, settings, job, attachments) {
     await graphResponse(accessToken, "DELETE", `/me/messages/${encodeURIComponent(draft.id)}`).catch(() => {});
     throw error;
   }
+}
+
+export async function sendOutlookPreviewMail(settings, recipientEmail) {
+  const recipient = clean(recipientEmail, 254).toLowerCase();
+  if (!settings?.active) throw new Error("Outlook 邮件接管尚未启用");
+  if (!isEmail(recipient)) throw new Error("测试收件邮箱无效");
+  const stamp = new Date().toISOString().replace(/\D/g, "").slice(0, 14);
+  const job = {
+    externalOrderNo: `TEST${stamp}`,
+    recipientEmail: recipient,
+    fullName: "测试收件人",
+    addressLines: ["619 Oak Ave", "Austin", "TX 61397, United States"],
+  };
+  const preview = buildOutlookPreviewPackage(job, settings.brandName);
+  const accessToken = await refreshAccessToken(settings);
+  await sendBrandedMail(accessToken, settings, job, preview.attachments);
+  return { orderNo: job.externalOrderNo, recipientEmail: recipient };
 }
 
 async function pollOutlookDeliveries(settings, onDelivered) {
