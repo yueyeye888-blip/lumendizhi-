@@ -7,7 +7,7 @@ const OAUTH_ROOT = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const OAUTH_SCOPE = "offline_access User.Read Mail.ReadWrite Mail.Send";
 const PROCESSED_CATEGORY = "越大爷已交付";
 export const OUTLOOK_SOURCE_FOLDERS = Object.freeze(["inbox", "junkemail"]);
-const DELIVERY_DELAY_MS = 60_000;
+const DELIVERY_DELAY_MS = 120_000;
 const SMALL_ATTACHMENT_BYTES = 2_500_000;
 const UPLOAD_CHUNK_BYTES = 10 * 320 * 1024;
 const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
@@ -269,6 +269,8 @@ export async function queueOutlookDelivery(settings, profile, payment) {
       nextAttemptAt: null,
       sourceMessageId: null,
       deliveredAt: null,
+      telegramNotifiedAt: null,
+      siteNotifiedAt: null,
     };
     const index = jobs.findIndex((item) => item.externalOrderNo === externalOrderNo);
     if (index >= 0 && jobs[index].state !== "delivered") jobs[index] = { ...jobs[index], ...job };
@@ -299,7 +301,7 @@ export function matchDeliveryJob(jobs, message) {
     message?.body?.content,
     message?.bodyPreview,
   ].map(decodeHtml).join(" ");
-  return jobs.find((job) => job.state !== "delivered"
+  return jobs.find((job) => job.state !== "delivered" && job.state !== "sent"
     && job.externalOrderNo
     && haystack.includes(job.externalOrderNo)) || null;
 }
@@ -515,8 +517,34 @@ export async function sendOutlookPreviewMail(settings, recipientEmail) {
 async function pollOutlookDeliveries(settings, onDelivered) {
   return withStoreLock(async () => {
     const jobs = await readJobs(settings);
-    const waiting = jobs.filter((job) => job.state !== "delivered");
-    if (!waiting.length) return 0;
+    let delivered = 0;
+    const scheduleRetry = (job, error) => {
+      job.attempts = Number(job.attempts || 0) + 1;
+      job.lastError = clean(error instanceof Error ? error.message : error, 500);
+      const delayMinutes = Math.min(30, 2 ** Math.min(5, job.attempts));
+      job.nextAttemptAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
+    };
+    const completeNotification = async (job) => {
+      try {
+        await onDelivered?.(job);
+        job.state = "delivered";
+        job.lastError = null;
+        job.nextAttemptAt = null;
+        await writeJobs(settings, jobs);
+        delivered += 1;
+      } catch (error) {
+        scheduleRetry(job, error);
+        await writeJobs(settings, jobs);
+      }
+    };
+
+    for (const job of jobs.filter((item) => item.state === "sent")) {
+      if (job.nextAttemptAt && Date.parse(job.nextAttemptAt) > Date.now()) continue;
+      await completeNotification(job);
+    }
+
+    const waiting = jobs.filter((job) => job.state !== "delivered" && job.state !== "sent");
+    if (!waiting.length) return delivered;
     const accessToken = await refreshAccessToken(settings);
     const query = new URLSearchParams({
       "$select": "id,subject,body,bodyPreview,receivedDateTime,hasAttachments,categories",
@@ -535,7 +563,6 @@ async function pollOutlookDeliveries(settings, onDelivered) {
     }
     if (folderErrors.length === OUTLOOK_SOURCE_FOLDERS.length) throw folderErrors[0];
     const messages = [...new Map(folderMessages.map((message) => [message.id, message])).values()];
-    let delivered = 0;
     for (const message of messages) {
       if (!message.hasAttachments || message.categories?.includes(PROCESSED_CATEGORY)) continue;
       const text = decodeHtml(`${message.subject || ""} ${message.body?.content || ""}`);
@@ -546,23 +573,19 @@ async function pollOutlookDeliveries(settings, onDelivered) {
       try {
         const attachments = await listSourceAttachments(accessToken, message.id);
         await sendBrandedMail(accessToken, settings, job, attachments);
-        job.state = "delivered";
+        job.state = "sent";
         job.sourceMessageId = message.id;
         job.deliveredAt = new Date().toISOString();
         job.lastError = null;
         job.nextAttemptAt = null;
+        await writeJobs(settings, jobs);
         await graphJson(accessToken, "PATCH", `/me/messages/${encodeURIComponent(message.id)}`, {
           isRead: true,
           categories: [...new Set([...(message.categories || []), PROCESSED_CATEGORY])],
-        });
-        await writeJobs(settings, jobs);
-        await onDelivered?.(job);
-        delivered += 1;
+        }).catch(() => {});
+        await completeNotification(job);
       } catch (error) {
-        job.attempts = Number(job.attempts || 0) + 1;
-        job.lastError = clean(error instanceof Error ? error.message : error, 500);
-        const delayMinutes = Math.min(30, 2 ** Math.min(5, job.attempts));
-        job.nextAttemptAt = new Date(Date.now() + delayMinutes * 60_000).toISOString();
+        scheduleRetry(job, error);
         await writeJobs(settings, jobs);
       }
     }

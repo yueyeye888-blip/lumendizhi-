@@ -82,3 +82,16 @@ test("forwards trusted submission text and reports the payment preflight", async
   assert.ok(source.includes("自动支付预演通过"));
   assert.ok(source.includes("dry-run 模式已确认"));
 });
+
+test("queues Outlook after processing and notifies Telegram before the delivered callback", async () => {
+  const source = await readFile(path.join(testDir, "..", "telegram-bot.mjs"), "utf8");
+  const paymentStatusAt = source.indexOf('status: isConfirmed ? "payment_confirmed" : "payment_pending"');
+  const queueAt = source.indexOf("await queueOutlookDelivery", paymentStatusAt);
+  assert.ok(paymentStatusAt >= 0 && queueAt > paymentStatusAt);
+  const callbackAt = source.indexOf("onDelivered: async (job)");
+  const telegramAt = source.indexOf("📧 文件已完成品牌邮箱交付", callbackAt);
+  const siteAt = source.indexOf('status: "delivered"', callbackAt);
+  assert.ok(callbackAt >= 0 && telegramAt > callbackAt && siteAt > telegramAt);
+  assert.match(source, /job\.telegramNotifiedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(source, /job\.siteNotifiedAt = new Date\(\)\.toISOString\(\)/);
+});

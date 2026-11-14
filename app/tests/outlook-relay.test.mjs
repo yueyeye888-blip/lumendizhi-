@@ -55,6 +55,20 @@ test("scans both the Outlook inbox and junk email folders", () => {
   assert.deepEqual(OUTLOOK_SOURCE_FOLDERS, ["inbox", "junkemail"]);
 });
 
+test("waits two minutes and only completes after delivery notifications succeed", async () => {
+  const source = await readFile(path.join(root, "lib", "outlook-relay.mjs"), "utf8");
+  assert.match(source, /const DELIVERY_DELAY_MS = 120_000/);
+  assert.match(source, /job\.state = "sent"/);
+  assert.match(source, /jobs\.filter\(\(item\) => item\.state === "sent"\)/);
+  const notifyAt = source.indexOf("await onDelivered?.(job)");
+  const deliveredAt = source.indexOf('job.state = "delivered"', notifyAt);
+  const sendAt = source.indexOf("await sendBrandedMail(accessToken, settings, job, attachments)");
+  const sentAt = source.indexOf('job.state = "sent"', sendAt);
+  const completeAt = source.indexOf("await completeNotification(job)", sentAt);
+  assert.ok(notifyAt >= 0 && deliveredAt > notifyAt);
+  assert.ok(sendAt >= 0 && sentAt > sendAt && completeAt > sentAt);
+});
+
 test("does not activate Outlook interception before authorization", async () => {
   const settings = await loadOutlookRelaySettings({
     enabled: false,

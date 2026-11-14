@@ -244,7 +244,6 @@ async function handleMessage(config, message) {
   try {
     const result = await runFill(config, message.text);
     const payment = result?.payment || {};
-    await queueOutlookDelivery(config.outlookRelay, profile, payment);
     const paymentResult = await processPayment({
       profile,
       payment,
@@ -264,6 +263,7 @@ async function handleMessage(config, message) {
       paymentNetwork: payment.paymentNetwork,
       paymentAddress: payment.paymentAddress,
     });
+    await queueOutlookDelivery(config.outlookRelay, profile, payment);
     await reply(
       config,
       statusChatId,
@@ -310,11 +310,8 @@ export async function runBot() {
   console.log(`[telegram-bot] started; allowed chats: ${config.allowedChatIds.size}`);
   const outlookRelay = startOutlookRelay(config.outlookRelay, {
     onDelivered: async (job) => {
-      await updateOrderStatus(config, job.requestNo, {
-        status: "delivered",
-        statusMessage: "文件已通过越大爷邮箱发送",
-      });
-      if (/^-?\d+$/.test(config.notifyChatId)) {
+      if (!job.telegramNotifiedAt) {
+        if (!/^-?\d+$/.test(config.notifyChatId)) throw new Error("Telegram 交付通知 Chat ID 无效");
         await reply(
           config,
           config.notifyChatId,
@@ -326,6 +323,14 @@ export async function runBot() {
             `接收邮箱：${job.recipientEmail}`,
           ].join("\n"),
         );
+        job.telegramNotifiedAt = new Date().toISOString();
+      }
+      if (!job.siteNotifiedAt) {
+        await updateOrderStatus(config, job.requestNo, {
+          status: "delivered",
+          statusMessage: "文件已通过越大爷邮箱发送",
+        });
+        job.siteNotifiedAt = new Date().toISOString();
       }
     },
   });
