@@ -1,11 +1,12 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { authorizeOutlookDevice, loadOutlookRelaySettings } from "./lib/outlook-relay.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const config = JSON.parse(await readFile(path.join(root, "runtime-config.json"), "utf8"));
+const configPath = path.join(root, "runtime-config.json");
+const config = JSON.parse(await readFile(configPath, "utf8"));
 const settings = await loadOutlookRelaySettings({
   ...(config.outlookRelay || {}),
   enabled: true,
@@ -28,6 +29,12 @@ const profile = await authorizeOutlookDevice(settings, ({ userCode, verification
   console.log("");
   console.log("等待授权完成……");
 });
+
+config.outlookRelay = {
+  ...(config.outlookRelay || {}),
+  enabled: true,
+};
+await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
 
 console.log("");
 console.log(`授权成功：${profile.displayName || settings.mailbox}`);

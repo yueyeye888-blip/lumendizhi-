@@ -63,7 +63,13 @@ test("stores Outlook tokens with CurrentUser DPAPI instead of source configurati
 });
 
 test("enables the relay only after Outlook authorization succeeds", async () => {
-  const source = await readFile(path.join(root, "scripts", "open-outlook-authorizer.ps1"), "utf8");
-  assert.match(source, /outlookRelay\.enabled = \$true/);
-  assert.match(source, /Restart-ScheduledTask -TaskName "SafeTGDemoBot"/);
+  const authorizer = await readFile(path.join(root, "authorize-outlook.mjs"), "utf8");
+  const launcher = await readFile(path.join(root, "scripts", "open-outlook-authorizer.ps1"), "utf8");
+  const authorizedAt = authorizer.indexOf("const profile = await authorizeOutlookDevice");
+  const enabledAt = authorizer.indexOf("enabled: true", authorizedAt);
+  assert.ok(authorizedAt >= 0 && enabledAt > authorizedAt);
+  assert.match(authorizer, /writeFile\(configPath/);
+  assert.match(launcher, /\$exitCode = \$LASTEXITCODE/);
+  assert.match(launcher, /Restart-ScheduledTask -TaskName "SafeTGDemoBot"/);
+  assert.doesNotMatch(launcher, /ConvertFrom-Json/);
 });
