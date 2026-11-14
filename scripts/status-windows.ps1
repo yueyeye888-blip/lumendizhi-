@@ -35,6 +35,10 @@ Write-Host "=== Sanitized Config ===" -ForegroundColor Cyan
   paymentMode = if ($config) { $config.paymentMode } else { $null }
   paymentMaxSingleUsdt = if ($config) { $config.paymentMaxSingleUsdt } else { $null }
   liveApprovalConfigured = [bool]($config -and $config.paymentLiveApproval)
+  outlookRelayEnabled = [bool]($config -and $config.outlookRelay.enabled)
+  outlookMailbox = if ($config) { $config.outlookRelay.mailbox } else { $null }
+  outlookClientIdPresent = [bool]($config -and $config.outlookRelay.clientId)
+  outlookAuthorized = Test-Path (Join-Path $InstallRoot "secrets\outlook-refresh-token.dpapi")
 } | Format-List
 
 Write-Host "=== Chrome CDP ===" -ForegroundColor Cyan
@@ -53,6 +57,7 @@ if ($RunTests) {
     (Join-Path $InstallRoot "tests\parser.test.mjs") `
     (Join-Path $InstallRoot "tests\payment.test.mjs") `
     (Join-Path $InstallRoot "tests\telegram.test.mjs") `
+    (Join-Path $InstallRoot "tests\outlook-relay.test.mjs") `
     (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
 }
 

@@ -82,6 +82,13 @@ function Read-Configuration {
     paymentMaxSingleUsdt = "5"
     paymentMinGasBnb = "0.001"
     paymentLiveApproval = ""
+    outlookRelay = [ordered]@{
+      enabled = $false
+      mailbox = ""
+      clientId = ""
+      brandName = "越大爷"
+      pollSeconds = 30
+    }
   }
 }
 
@@ -101,11 +108,19 @@ function Normalize-Configuration([object]$RawConfig) {
   $paymentMaxSingleUsdt = ([string]$RawConfig.paymentMaxSingleUsdt).Trim()
   $paymentMinGasBnb = ([string]$RawConfig.paymentMinGasBnb).Trim()
   $paymentLiveApproval = ([string]$RawConfig.paymentLiveApproval).Trim()
+  $outlookEnabledText = ([string]$RawConfig.outlookRelay.enabled).Trim().ToLowerInvariant()
+  $outlookEnabled = $RawConfig.outlookRelay.enabled -eq $true -or $outlookEnabledText -in @("1", "true", "yes", "on")
+  $outlookMailbox = ([string]$RawConfig.outlookRelay.mailbox).Trim().ToLowerInvariant()
+  $outlookClientId = ([string]$RawConfig.outlookRelay.clientId).Trim()
+  $outlookBrandName = ([string]$RawConfig.outlookRelay.brandName).Trim()
+  $outlookPollSeconds = [int]$RawConfig.outlookRelay.pollSeconds
   if (-not $paymentMode) { $paymentMode = "dry-run" }
   if (-not $bscRpcUrl) { $bscRpcUrl = "https://bsc-dataseed.bnbchain.org" }
   if (-not $bscUsdtContract) { $bscUsdtContract = "0x55d398326f99059fF775485246999027B3197955" }
   if (-not $paymentMaxSingleUsdt) { $paymentMaxSingleUsdt = "5" }
   if (-not $paymentMinGasBnb) { $paymentMinGasBnb = "0.001" }
+  if (-not $outlookBrandName) { $outlookBrandName = "越大爷" }
+  if ($outlookPollSeconds -lt 15) { $outlookPollSeconds = 30 }
 
   if ($token -notmatch '^\d{6,12}:[A-Za-z0-9_-]{20,}$') {
     throw "接收 Bot Token 格式不正确。"
@@ -148,6 +163,12 @@ function Normalize-Configuration([object]$RawConfig) {
   if ($paymentMode -eq "live" -and $paymentLiveApproval -cne "ENABLE_BSC_USDT_LIVE_PAYMENT") {
     throw "live 模式缺少 paymentLiveApproval 二次启用口令。"
   }
+  if ($outlookEnabled) {
+    if ($outlookMailbox -notmatch '^[^\s@]+@[^\s@]+\.[^\s@]+$') { throw "Outlook 接管邮箱格式不正确。" }
+    if ($outlookClientId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$') {
+      throw "Outlook OAuth Client ID 格式不正确。"
+    }
+  }
 
   return [ordered]@{
     telegramBotToken = $token
@@ -165,6 +186,13 @@ function Normalize-Configuration([object]$RawConfig) {
     paymentMaxSingleUsdt = $paymentMaxSingleUsdt
     paymentMinGasBnb = $paymentMinGasBnb
     paymentLiveApproval = $paymentLiveApproval
+    outlookRelay = [ordered]@{
+      enabled = $outlookEnabled
+      mailbox = $outlookMailbox
+      clientId = $outlookClientId
+      brandName = $outlookBrandName
+      pollSeconds = [Math]::Min(300, [Math]::Max(15, $outlookPollSeconds))
+    }
   }
 }
 
@@ -350,6 +378,9 @@ $utf8NoBom = New-Object Text.UTF8Encoding($false)
 [IO.File]::WriteAllText($configPath, $json + [Environment]::NewLine, $utf8NoBom)
 $account = "$env:USERDOMAIN\$env:USERNAME"
 & icacls.exe $configPath /inheritance:r /grant:r "$account`:(F)" "SYSTEM:(F)" | Out-Null
+$dataRoot = Join-Path $InstallRoot "data"
+New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
+& icacls.exe $dataRoot /inheritance:r /grant:r "$account`:(OI)(CI)(F)" "SYSTEM:(OI)(CI)(F)" | Out-Null
 
 Write-Step "执行回归测试"
 & $nodeExe --test `
@@ -357,6 +388,7 @@ Write-Step "执行回归测试"
   (Join-Path $InstallRoot "tests\parser.test.mjs") `
   (Join-Path $InstallRoot "tests\payment.test.mjs") `
   (Join-Path $InstallRoot "tests\telegram.test.mjs") `
+  (Join-Path $InstallRoot "tests\outlook-relay.test.mjs") `
   (Join-Path $InstallRoot "tests\wallet-import.test.mjs")
 if ($LASTEXITCODE -ne 0) { throw "回归测试失败，未启动服务。" }
 
@@ -377,6 +409,14 @@ $walletShortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $wall
 $walletShortcut.WorkingDirectory = $InstallRoot
 $walletShortcut.Description = "Import the BSC payer wallet using hidden local input"
 $walletShortcut.Save()
+$outlookShortcutPath = Join-Path $commonDesktop "授权 Outlook 邮箱（窗口保持打开）.lnk"
+$outlookShortcut = $walletShell.CreateShortcut($outlookShortcutPath)
+$outlookShortcut.TargetPath = "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+$outlookScriptPath = Join-Path $InstallRoot "scripts\open-outlook-authorizer.ps1"
+$outlookShortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + $outlookScriptPath + '" -InstallRoot "' + $InstallRoot + '" -NodeExe "' + $nodeExe + '"'
+$outlookShortcut.WorkingDirectory = $InstallRoot
+$outlookShortcut.Description = "Authorize the dedicated Outlook mailbox using OAuth device login"
+$outlookShortcut.Save()
 
 Write-Step "启动 Chrome、状态页和 Telegram 接收器"
 Start-ScheduledTask -TaskName "SafeTGDemoBrowser"
@@ -406,3 +446,4 @@ Write-Host "接收器进程 PID：$($botProcess.ProcessId)"
 Write-Host "日志：$InstallRoot\telegram-bot.log"
 Write-Host "支付模式：$($config.paymentMode)（dry-run 会完成钱包与链上预检，但不签名、不广播）。"
 Write-Host "付款钱包：请在服务器桌面双击‘导入付款钱包（窗口保持打开）’，以隐藏输入方式本地导入。"
+Write-Host "Outlook：配置 Client ID 后，在服务器桌面双击‘授权 Outlook 邮箱（窗口保持打开）’完成一次性授权。"

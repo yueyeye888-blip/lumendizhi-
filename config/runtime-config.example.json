@@ -17,5 +17,12 @@
   "bscUsdtContract": "0x55d398326f99059fF775485246999027B3197955",
   "paymentMaxSingleUsdt": "5",
   "paymentMinGasBnb": "0.001",
-  "paymentLiveApproval": ""
+  "paymentLiveApproval": "",
+  "outlookRelay": {
+    "enabled": false,
+    "mailbox": "YOUR_DEDICATED_OUTLOOK_ADDRESS",
+    "clientId": "YOUR_MICROSOFT_ENTRA_PUBLIC_CLIENT_ID",
+    "brandName": "越大爷",
+    "pollSeconds": 30
+  }
 }

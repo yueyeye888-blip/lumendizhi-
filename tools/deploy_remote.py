@@ -97,6 +97,16 @@ def runtime_config() -> dict[str, object]:
         "paymentMaxSingleUsdt": os.environ.get("PAYMENT_MAX_SINGLE_USDT", "5").strip(),
         "paymentMinGasBnb": os.environ.get("PAYMENT_MIN_GAS_BNB", "0.001").strip(),
         "paymentLiveApproval": os.environ.get("PAYMENT_LIVE_APPROVAL", "").strip(),
+        "outlookRelay": {
+            "enabled": os.environ.get("OUTLOOK_RELAY_ENABLED", "false").strip().lower()
+            in {"1", "true", "yes", "on"},
+            "mailbox": os.environ.get("OUTLOOK_RELAY_MAILBOX", "").strip().lower(),
+            "clientId": os.environ.get("OUTLOOK_CLIENT_ID", "").strip(),
+            "brandName": os.environ.get("OUTLOOK_BRAND_NAME", "越大爷").strip() or "越大爷",
+            "pollSeconds": max(
+                15, min(300, int(os.environ.get("OUTLOOK_POLL_SECONDS", "30")))
+            ),
+        },
     }
 
 

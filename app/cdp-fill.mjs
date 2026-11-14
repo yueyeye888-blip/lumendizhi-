@@ -7,6 +7,7 @@ const targetOrigin = new URL(targetUrl).origin;
 const messagePath = process.argv[2] || "sample-message.txt";
 const message = await readFile(messagePath, "utf8");
 const profile = parsePersonalDetailsNotice(message);
+const addrsDeliveryEmail = String(process.env.ADDRS_DELIVERY_EMAIL || profile.recipientEmail).trim();
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const targets = await fetch(`http://127.0.0.1:${cdpPort}/json/list`).then((response) => response.json());
@@ -98,7 +99,7 @@ if (!verificationReady) {
 }
 await sleep(500);
 
-const payload = JSON.stringify(profile);
+const payload = JSON.stringify({ ...profile, recipientEmail: addrsDeliveryEmail });
 const fillResult = await evaluate(`(async () => {
   const profile = ${payload};
   const templateCard = Array.from(document.querySelectorAll('.template-card'))

@@ -17,6 +17,7 @@
 - Bot update offset 会写入 `telegram-offset.json`，重启后不会重复处理已经确认过的消息。
 - BSC 固定校验 Chain ID `56`、官方 RPC 和允许列表中的 Binance-Peg USDT 合约；默认单笔上限 `5 USDT`，不设 24 小时累计上限。
 - `live` 模式必须同时设置独立的二次启用口令；仅改模式字段不会启动付款。
+- Outlook 邮件接管使用 OAuth2 读取专用邮箱中的成品邮件，提取 PDF 和图片附件，再以“越大爷”正文发送到员工原收件邮箱；OAuth 刷新令牌使用 Windows CurrentUser DPAPI 加密。
 
 本机测试：
 
@@ -38,6 +39,14 @@ C:\SafeTGDemo\import-payer-wallet.cmd
 工具会通过隐藏输入读取私钥，使用 ethers 校验对应公开地址，然后以当前 Windows 账户的 DPAPI 加密保存到 `C:\SafeTGDemo\secrets\payer-private-key.dpapi`。公开地址和网络元数据保存在同目录的 `payer-wallet.json`。目录 ACL 只允许当前账户和 SYSTEM 访问；私钥不会出现在命令行、日志、源码或 Telegram 中。
 
 DPAPI 密文绑定当前 Windows 账户。迁移服务器时不要直接复制该密文，应在新服务器重新运行导入工具。
+
+## Outlook 品牌邮件交付
+
+在 `runtime-config.json` 的 `outlookRelay` 中填写专用 Outlook 邮箱和 Microsoft Entra 公共客户端 Client ID。首次保持 `enabled: false`，部署后在服务器桌面双击 `授权 Outlook 邮箱（窗口保持打开）`，按窗口中的设备登录代码完成授权。
+
+授权完成并把 `enabled` 改为 `true` 后，自动填表会把 Addrs.xyz 接收邮箱改为专用 Outlook 邮箱；服务器按外部订单号匹配原员工邮箱，仅重新发送 PDF 和图片附件。原邮件正文、Logo 和 Addrs.xyz 品牌不会转发。
+
+邮箱密码、访问令牌和刷新令牌都不会写入源码或 GitHub。迁移服务器时不要复制 `outlook-refresh-token.dpapi`，需要在新服务器重新授权。
 
 ## BSC USDT 付款预演
 

@@ -6,6 +6,7 @@ config/*.private.json
 **/demo-preview.png
 **/*.log
 **/data/
+**/secrets/
 
 # Dependencies and build output
 node_modules/

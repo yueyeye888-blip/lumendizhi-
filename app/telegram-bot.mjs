@@ -7,6 +7,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
 import { normalizePaymentSettings, processPayment } from "./lib/payment.mjs";
 import {
+  loadOutlookRelaySettings,
+  queueOutlookDelivery,
+  startOutlookRelay,
+} from "./lib/outlook-relay.mjs";
+import {
   isMessageAuthorized,
   messageFromUpdate,
   parseAllowedChatIds,
@@ -78,6 +83,13 @@ export async function loadConfig() {
     paymentMinGasBnb: process.env.PAYMENT_MIN_GAS_BNB || fileConfig.paymentMinGasBnb,
     paymentLiveApproval: process.env.PAYMENT_LIVE_APPROVAL || fileConfig.paymentLiveApproval,
   }, root);
+  const outlookRelay = await loadOutlookRelaySettings({
+    enabled: process.env.OUTLOOK_RELAY_ENABLED ?? fileConfig.outlookRelay?.enabled,
+    mailbox: process.env.OUTLOOK_RELAY_MAILBOX || fileConfig.outlookRelay?.mailbox,
+    clientId: process.env.OUTLOOK_CLIENT_ID || fileConfig.outlookRelay?.clientId,
+    brandName: process.env.OUTLOOK_BRAND_NAME || fileConfig.outlookRelay?.brandName,
+    pollSeconds: process.env.OUTLOOK_POLL_SECONDS || fileConfig.outlookRelay?.pollSeconds,
+  }, root);
 
   return {
     token,
@@ -90,6 +102,7 @@ export async function loadConfig() {
     orderCallbackToken,
     siteAccessToken,
     paymentSettings,
+    outlookRelay,
   };
 }
 
@@ -145,6 +158,9 @@ export async function runFill(config, text) {
           ...process.env,
           TARGET_URL: config.targetUrl,
           SAFE_DEMO_CDP_PORT: String(config.cdpPort),
+          ...(config.outlookRelay.active
+            ? { ADDRS_DELIVERY_EMAIL: config.outlookRelay.mailbox }
+            : {}),
         },
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
@@ -228,6 +244,7 @@ async function handleMessage(config, message) {
   try {
     const result = await runFill(config, message.text);
     const payment = result?.payment || {};
+    await queueOutlookDelivery(config.outlookRelay, profile, payment);
     const paymentResult = await processPayment({
       profile,
       payment,
@@ -291,6 +308,27 @@ export async function runBot() {
   process.once("SIGINT", () => { stopped = true; });
   process.once("SIGTERM", () => { stopped = true; });
   console.log(`[telegram-bot] started; allowed chats: ${config.allowedChatIds.size}`);
+  const outlookRelay = startOutlookRelay(config.outlookRelay, {
+    onDelivered: async (job) => {
+      await updateOrderStatus(config, job.requestNo, {
+        status: "delivered",
+        statusMessage: "文件已通过越大爷邮箱发送",
+      });
+      if (/^-?\d+$/.test(config.notifyChatId)) {
+        await reply(
+          config,
+          config.notifyChatId,
+          [
+            "📧 文件已完成品牌邮箱交付",
+            "",
+            `订单编号：${job.requestNo}`,
+            `addrs.xyz 订单：${job.externalOrderNo}`,
+            `接收邮箱：${job.recipientEmail}`,
+          ].join("\n"),
+        );
+      }
+    },
+  });
 
   while (!stopped) {
     try {
@@ -324,6 +362,7 @@ export async function runBot() {
       retryDelay = Math.min(retryDelay * 2, 30_000);
     }
   }
+  outlookRelay.stop();
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
