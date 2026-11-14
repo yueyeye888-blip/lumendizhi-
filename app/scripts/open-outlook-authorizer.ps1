@@ -10,7 +10,8 @@ try {
   & $NodeExe (Join-Path $InstallRoot "authorize-outlook.mjs")
   $exitCode = $LASTEXITCODE
   if ($exitCode -ne 0) { throw "Outlook 授权工具退出码：$exitCode" }
-  Restart-ScheduledTask -TaskName "SafeTGDemoBot" -ErrorAction SilentlyContinue
+  Stop-ScheduledTask -TaskName "SafeTGDemoBot" -ErrorAction SilentlyContinue
+  Start-ScheduledTask -TaskName "SafeTGDemoBot" -ErrorAction Stop
   Write-Host ""
   Write-Host "Outlook 邮件接管已授权，接收器已重新启动。" -ForegroundColor Green
 }

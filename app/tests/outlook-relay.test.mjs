@@ -70,6 +70,7 @@ test("enables the relay only after Outlook authorization succeeds", async () => 
   assert.ok(authorizedAt >= 0 && enabledAt > authorizedAt);
   assert.match(authorizer, /writeFile\(configPath/);
   assert.match(launcher, /\$exitCode = \$LASTEXITCODE/);
-  assert.match(launcher, /Restart-ScheduledTask -TaskName "SafeTGDemoBot"/);
+  assert.match(launcher, /Stop-ScheduledTask -TaskName "SafeTGDemoBot"/);
+  assert.match(launcher, /Start-ScheduledTask -TaskName "SafeTGDemoBot"/);
   assert.doesNotMatch(launcher, /ConvertFrom-Json/);
 });
