@@ -9,6 +9,7 @@ import {
   buildOutlookPreviewPackage,
   loadOutlookRelaySettings,
   matchDeliveryJob,
+  OUTLOOK_SOURCE_FOLDERS,
 } from "../lib/outlook-relay.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,6 +49,10 @@ test("matches an inbox message to the original external order", () => {
     body: { content: "<p>订单号 2026111329FF31D9FC9A</p>" },
   };
   assert.equal(matchDeliveryJob(jobs, message), jobs[0]);
+});
+
+test("scans both the Outlook inbox and junk email folders", () => {
+  assert.deepEqual(OUTLOOK_SOURCE_FOLDERS, ["inbox", "junkemail"]);
 });
 
 test("does not activate Outlook interception before authorization", async () => {

@@ -6,6 +6,7 @@ const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
 const OAUTH_ROOT = "https://login.microsoftonline.com/consumers/oauth2/v2.0";
 const OAUTH_SCOPE = "offline_access User.Read Mail.ReadWrite Mail.Send";
 const PROCESSED_CATEGORY = "越大爷已交付";
+export const OUTLOOK_SOURCE_FOLDERS = Object.freeze(["inbox", "junkemail"]);
 const DELIVERY_DELAY_MS = 60_000;
 const SMALL_ATTACHMENT_BYTES = 2_500_000;
 const UPLOAD_CHUNK_BYTES = 10 * 320 * 1024;
@@ -522,9 +523,20 @@ async function pollOutlookDeliveries(settings, onDelivered) {
       "$top": "50",
       "$orderby": "receivedDateTime desc",
     });
-    const inbox = await graphJson(accessToken, "GET", `/me/mailFolders/inbox/messages?${query}`);
+    const folderMessages = [];
+    const folderErrors = [];
+    for (const folder of OUTLOOK_SOURCE_FOLDERS) {
+      try {
+        const result = await graphJson(accessToken, "GET", `/me/mailFolders/${folder}/messages?${query}`);
+        folderMessages.push(...(result.value || []));
+      } catch (error) {
+        folderErrors.push(error);
+      }
+    }
+    if (folderErrors.length === OUTLOOK_SOURCE_FOLDERS.length) throw folderErrors[0];
+    const messages = [...new Map(folderMessages.map((message) => [message.id, message])).values()];
     let delivered = 0;
-    for (const message of inbox.value || []) {
+    for (const message of messages) {
       if (!message.hasAttachments || message.categories?.includes(PROCESSED_CATEGORY)) continue;
       const text = decodeHtml(`${message.subject || ""} ${message.body?.content || ""}`);
       if (!/文件生成完成/.test(text) || !/PDF/i.test(text)) continue;
