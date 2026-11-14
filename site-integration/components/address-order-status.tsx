@@ -18,19 +18,29 @@ type AddressOrder = {
 
 const STEPS = ["资料提交", "自动填表", "等待处理", "处理完成", "邮箱交付"];
 const TERMINAL = new Set(["payment_confirmed", "delivered", "failed"]);
+const DELIVERY_DELAY_MS = 60_000;
 
-function stepFor(status: string) {
-  if (status === "queued") return 1;
-  if (status === "filling") return 2;
-  if (status === "payment_pending") return 3;
-  if (status === "generating") return 4;
-  if (status === "payment_confirmed" || status === "delivered") return 5;
+function deliveryReady(order: AddressOrder, now: number) {
+  if (order.status === "delivered") return true;
+  if (order.status !== "payment_confirmed") return false;
+  const completedAt = Date.parse(order.updatedAt);
+  return Number.isFinite(completedAt) && now >= completedAt + DELIVERY_DELAY_MS;
+}
+
+function stepFor(order: AddressOrder, now: number) {
+  if (order.status === "queued") return 1;
+  if (order.status === "filling") return 2;
+  if (order.status === "payment_pending") return 3;
+  if (order.status === "payment_confirmed") return deliveryReady(order, now) ? 5 : 4;
+  if (order.status === "generating") return 4;
+  if (order.status === "delivered") return 5;
   return 1;
 }
 
-function displayFor(order: AddressOrder) {
+function displayFor(order: AddressOrder, now: number) {
   if (order.status === "failed") return { title: "订单处理失败", detail: order.error || order.statusMessage || "请联系管理员处理", tone: "error" };
   if (order.status === "payment_pending") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
+  if (order.status === "payment_confirmed" && !deliveryReady(order, now)) return { title: "处理完成", detail: "邮件正在准备发送，预计 1 分钟内完成交付，请稍候。", tone: "ready" };
   if (order.status === "payment_confirmed") return { title: "已发送到邮箱", detail: "文件已发送，请同时检查垃圾邮件和订阅邮件。", tone: "ready" };
   if (order.status === "generating") return { title: "文件正在处理", detail: "预计处理时间约 5 分钟，请耐心等待，页面会自动更新。", tone: "working" };
   if (order.status === "delivered") return { title: "已发送到邮箱", detail: "文件已发送，请同时检查垃圾邮件和订阅邮件。", tone: "ready" };
@@ -41,6 +51,7 @@ function displayFor(order: AddressOrder) {
 export default function AddressOrderStatus({ requestNo }: { requestNo: string }) {
   const [order, setOrder] = useState<AddressOrder | null>(null);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
     try {
@@ -62,8 +73,17 @@ export default function AddressOrderStatus({ requestNo }: { requestNo: string })
     return () => window.clearInterval(timer);
   }, [order?.status, refresh]);
 
-  const currentStep = order ? stepFor(order.status) : 1;
-  const display = useMemo(() => order ? displayFor(order) : null, [order]);
+  useEffect(() => {
+    if (!order || order.status !== "payment_confirmed") return;
+    const completedAt = Date.parse(order.updatedAt);
+    if (!Number.isFinite(completedAt)) return;
+    const remaining = Math.max(0, completedAt + DELIVERY_DELAY_MS - Date.now());
+    const timer = window.setTimeout(() => setNow(Date.now()), remaining + 50);
+    return () => window.clearTimeout(timer);
+  }, [order?.status, order?.updatedAt]);
+
+  const currentStep = order ? stepFor(order, now) : 1;
+  const display = useMemo(() => order ? displayFor(order, now) : null, [now, order]);
 
   return <main className="min-h-screen bg-[radial-gradient(circle_at_top,#eef4ff_0,#f6f8fc_42%,#edf1f7_100%)] px-4 py-5 text-[#202938] sm:px-8 sm:py-8">
     <div className="mx-auto max-w-7xl">

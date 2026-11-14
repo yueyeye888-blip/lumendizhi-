@@ -16,10 +16,13 @@ test("employee order page uses processing language and hides payment details", a
   assert.ok(!source.includes("收款地址"));
 });
 
-test("payment confirmation completes email delivery in the employee order page", async () => {
+test("payment confirmation waits one minute before completing email delivery", async () => {
   const source = await readFile(path.join(root, "components", "address-order-status.tsx"), "utf8");
   assert.ok(source.includes('new Set(["payment_confirmed", "delivered", "failed"])'));
-  assert.ok(source.includes('status === "payment_confirmed" || status === "delivered") return 5'));
+  assert.ok(source.includes("const DELIVERY_DELAY_MS = 60_000"));
+  assert.ok(source.includes('order.status === "payment_confirmed") return deliveryReady(order, now) ? 5 : 4'));
+  assert.ok(source.includes('title: "处理完成"'));
+  assert.ok(source.includes("预计 1 分钟内完成交付"));
   assert.ok(source.includes('order.status === "payment_confirmed") return { title: "已发送到邮箱"'));
 });
 
