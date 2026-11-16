@@ -1,0 +1,1 @@
+import{t as e}from"./chatgpt-auth-CAwUFDgI.js";var t=`force-dynamic`,n={"cache-control":`private, no-store`};async function r(){return await e()?Response.json({error:`个人资料已改为一次性填写，不再读取或保存草稿`,code:`personal_details_drafts_retired`},{status:410,headers:n}):Response.json({error:`请先登录`},{status:401,headers:n})}var i=r,a=r;export{i as GET,a as POST,t as dynamic};

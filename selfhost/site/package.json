@@ -1,0 +1,1 @@
+{"name":"lumen-resource-hub-selfhost","private":true,"type":"module","version":"29.0.0","engines":{"node":">=22.13.0"},"dependencies":{"miniflare":"4.20260515.0"},"scripts":{"start":"node server.mjs","initialize":"node initialize.mjs"}}

@@ -1,0 +1,1 @@
+import{env as e}from"cloudflare:workers";function t(t){return String(e.RESOURCE_ADMIN_EMAILS||``).split(`,`).map(e=>e.trim().toLowerCase()).filter(Boolean).includes(t.email.toLowerCase())}export{t};

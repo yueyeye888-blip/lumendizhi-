@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
+import { processSiteQueue } from "./lib/site-order-queue.mjs";
 import { normalizePaymentSettings, processPayment } from "./lib/payment.mjs";
 import {
   loadOutlookRelaySettings,
@@ -101,6 +102,7 @@ export async function loadConfig() {
     orderCallbackUrl,
     orderCallbackToken,
     siteAccessToken,
+    siteOrderQueueDirectory: fileConfig.siteOrderQueueDirectory || "",
     paymentSettings,
     outlookRelay,
   };
@@ -136,7 +138,7 @@ async function updateOrderStatus(config, requestNo, payload) {
     headers: {
       authorization: `Bearer ${config.orderCallbackToken}`,
       "content-type": "application/json",
-      ...(config.siteAccessToken
+      ...(config.siteAccessToken && new URL(config.orderCallbackUrl).hostname.endsWith('.chatgpt.site')
         ? { "OAI-Sites-Authorization": `Bearer ${config.siteAccessToken}` }
         : {}),
     },
@@ -337,6 +339,15 @@ export async function runBot() {
 
   while (!stopped) {
     try {
+      await processSiteQueue(config.siteOrderQueueDirectory, async (job) => {
+        parsePersonalDetailsNotice(job.text);
+        if (!config.allowedChatIds.has(config.notifyChatId)) throw new Error('Queue notification chat is not authorized');
+        await handleMessage(config, { text: job.text, chatId: config.notifyChatId, senderId: config.notifyChatId, senderIsBot: false });
+        console.log(`[site-queue] completed ${job.requestNo}`);
+      }, async (requestNo, error) => {
+        console.error(`[site-queue] failed ${requestNo}: ${error.message}`);
+        await updateOrderStatus(config, requestNo, { status: 'failed', statusMessage: '自动处理失败，请联系管理员核查后重试', error: error.message }).catch(() => {});
+      });
       const updates = await telegramApi(config, "getUpdates", {
         offset,
         timeout: 30,

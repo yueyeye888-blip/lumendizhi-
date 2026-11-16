@@ -47,7 +47,7 @@ function Split-IdList([object]$Value) {
 function Read-Configuration {
   if ($ConfigFile) {
     $resolved = (Resolve-Path $ConfigFile).Path
-    return Get-Content $resolved -Raw | ConvertFrom-Json
+    return Get-Content $resolved -Raw -Encoding UTF8 | ConvertFrom-Json
   }
 
   Write-Host "未指定私密配置文件，将通过交互式输入生成配置。" -ForegroundColor Yellow
@@ -180,6 +180,7 @@ function Normalize-Configuration([object]$RawConfig) {
     orderCallbackUrl = $parsedCallback.AbsoluteUri
     orderCallbackToken = $callbackToken
     siteAccessToken = $siteAccessToken
+    siteOrderQueueDirectory = $(if ($RawConfig.siteOrderQueueDirectory) { [string]$RawConfig.siteOrderQueueDirectory } else { Join-Path $InstallRoot "data\site-order-queue" })
     paymentMode = $paymentMode
     bscRpcUrl = $parsedRpc.AbsoluteUri
     bscUsdtContract = $bscUsdtContract
@@ -306,7 +307,7 @@ function Register-RuntimeTasks([string]$NodeExe, [string]$ChromeExe, [System.Col
   $cdpPort = [int]$Config.cdpPort
   $browserArgs = "--new-window --remote-debugging-port=$cdpPort --remote-allow-origins=* --user-data-dir=`"$profileRoot`" --no-first-run --no-default-browser-check --window-size=1600,1000 `"$targetUrl`""
   $browserAction = New-ScheduledTaskAction -Execute $ChromeExe -Argument $browserArgs
-  Register-ScheduledTask -TaskName "SafeTGDemoBrowser" -Action $browserAction -Trigger $trigger -Principal $principal -Force | Out-Null
+  Register-ScheduledTask -TaskName "SafeTGDemoBrowser" -Action $browserAction -Trigger $trigger -Principal $principal -Settings $restartSettings -Force | Out-Null
 
   $botAction = New-LoggedPowerShellAction $NodeExe (Join-Path $InstallRoot "telegram-bot.mjs") (Join-Path $InstallRoot "telegram-bot.log")
   Register-ScheduledTask -TaskName "SafeTGDemoBot" -Action $botAction -Trigger $trigger -Principal $principal -Settings $restartSettings -Force | Out-Null
@@ -381,6 +382,11 @@ $account = "$env:USERDOMAIN\$env:USERNAME"
 $dataRoot = Join-Path $InstallRoot "data"
 New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null
 & icacls.exe $dataRoot /inheritance:r /grant:r "$account`:(OI)(CI)(F)" "SYSTEM:(OI)(CI)(F)" | Out-Null
+
+$queueRoot = [string]$config.siteOrderQueueDirectory
+New-Item -ItemType Directory -Path $queueRoot -Force | Out-Null
+& icacls.exe $queueRoot /grant "*S-1-5-19:(OI)(CI)(M)" | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Queue ACL failed" }
 
 Write-Step "执行回归测试"
 & $nodeExe --test `

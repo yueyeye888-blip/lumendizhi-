@@ -1,0 +1,960 @@
+{
+  "snapshotId": "20261116-828a0280",
+  "files": [
+    {
+      "path": "app/wallet-address.mjs",
+      "source": "SafeTGDemo/wallet-address.mjs",
+      "sha256": "5f3f34e354fc7c4168dfc719a5080c831ac07ccaae05e6dff44e19f099a73227"
+    },
+    {
+      "path": "app/authorize-outlook.mjs",
+      "source": "SafeTGDemo/authorize-outlook.mjs",
+      "sha256": "3d67ac8e409249b2d99787131f5fd77ef4147a85f18087a380dc5b5967585260"
+    },
+    {
+      "path": "app/send-outlook-preview.mjs",
+      "source": "SafeTGDemo/send-outlook-preview.mjs",
+      "sha256": "42725058484792fe1f13b9cd3eed37e9fce2188557805893616a4c3a524e470c"
+    },
+    {
+      "path": "app/import-payer-wallet.cmd",
+      "source": "SafeTGDemo/import-payer-wallet.cmd",
+      "sha256": "32c33c1d0824fe851fab8dcf51ead6fe395e9967cf4e0cf915c2bd0ffe54966b"
+    },
+    {
+      "path": "app/telegram-bot.mjs",
+      "source": "SafeTGDemo/telegram-bot.mjs",
+      "sha256": "59fc46ca08ff8018187e2dd8a74c8e86e5798a3826c538037f02dbcf3faf68b6"
+    },
+    {
+      "path": "app/sample-message.txt",
+      "source": "SafeTGDemo/sample-message.txt",
+      "sha256": "9fd5e805820544010b41a08eee5c544038e202c68a761e09ea6bc534a4a6eab0"
+    },
+    {
+      "path": "app/README.md",
+      "source": "SafeTGDemo/README.md",
+      "sha256": "b1132174f42b6af73db8716d06177c154a9205a463307cdd5ff2618d4d51c7cb"
+    },
+    {
+      "path": "app/package-lock.json",
+      "source": "SafeTGDemo/package-lock.json",
+      "sha256": "ef0cb7b1cbba368e6f14c12136f45ff86a60d15a9e383d94cdebf30cd26dc817"
+    },
+    {
+      "path": "app/package.json",
+      "source": "SafeTGDemo/package.json",
+      "sha256": "3094a15affb7a1463efe0c819d2dbcd4fc09e949ec9a41380e394c565d8b0496"
+    },
+    {
+      "path": "app/cdp-fill.mjs",
+      "source": "SafeTGDemo/cdp-fill.mjs",
+      "sha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1"
+    },
+    {
+      "path": "app/server.mjs",
+      "source": "SafeTGDemo/server.mjs",
+      "sha256": "dfeb773eb30261b504d97f9f2b764fdffeb4280d372dc051aa31c0d028704d41"
+    },
+    {
+      "path": "app/wallet-preflight.mjs",
+      "source": "SafeTGDemo/wallet-preflight.mjs",
+      "sha256": "ceac6e11cb2bc89cef59bd543b6c04c2df7254ddaf601b886e702d5f1d903e19"
+    },
+    {
+      "path": "app/dry-run-flow.mjs",
+      "source": "SafeTGDemo/dry-run-flow.mjs",
+      "sha256": "dcb371520d248c89797adc0e5317fde39b280aaa054c877502afc46a4a5920ca"
+    },
+    {
+      "path": "app/tests/parser.test.mjs",
+      "source": "SafeTGDemo/tests/parser.test.mjs",
+      "sha256": "10ae8185cf7a9c210ac7db53ced78c8a1ca34e9cf4f6901ecf0e8e1ee6b598ea"
+    },
+    {
+      "path": "app/tests/wallet-import.test.mjs",
+      "source": "SafeTGDemo/tests/wallet-import.test.mjs",
+      "sha256": "bce0f20a219c4e38a98a458b298e2e34a34f2cbb7f81b4884a9b37c6d7e3dfe3"
+    },
+    {
+      "path": "app/tests/outlook-relay.test.mjs",
+      "source": "SafeTGDemo/tests/outlook-relay.test.mjs",
+      "sha256": "9f3ee8641d513c97a97dd8c44dfa11ded3d6b653b26d16e320b4da2404ae6347"
+    },
+    {
+      "path": "app/tests/payment.test.mjs",
+      "source": "SafeTGDemo/tests/payment.test.mjs",
+      "sha256": "44456af8e321af6574bfadff5e7020fc6148f0ba1b8986c452dcada1f3273030"
+    },
+    {
+      "path": "app/tests/cdp-fill.test.mjs",
+      "source": "SafeTGDemo/tests/cdp-fill.test.mjs",
+      "sha256": "c360d717aeac06e095cc7295ff7832c4bb9a3fd0c9d28d6438b2d1aa1a35b2eb"
+    },
+    {
+      "path": "app/tests/telegram.test.mjs",
+      "source": "SafeTGDemo/tests/telegram.test.mjs",
+      "sha256": "67a6fcfcdde11f82914296962e42f76148d85976c1e208adf08871c0d43435fa"
+    },
+    {
+      "path": "app/public/index.html",
+      "source": "SafeTGDemo/public/index.html",
+      "sha256": "71c42aeb781cbdabd095d80072842b2f132a383b1864058f6d59cc24056b3103"
+    },
+    {
+      "path": "app/public/styles.css",
+      "source": "SafeTGDemo/public/styles.css",
+      "sha256": "4613d1e319bb8e0ecccfcf0393e3a0f1ecb1b06f29171109d1c154766602cf0c"
+    },
+    {
+      "path": "app/public/app.js",
+      "source": "SafeTGDemo/public/app.js",
+      "sha256": "a9d2661083fa0ff504e114aa45b0f32734b4100e8bbe8f6e9ff4e780f8cfb383"
+    },
+    {
+      "path": "app/scripts/read-payer-key.ps1",
+      "source": "SafeTGDemo/scripts/read-payer-key.ps1",
+      "sha256": "20d51b328b8103a7e4739be20fc87547827289a5eda784bd4883182678d5b4d8"
+    },
+    {
+      "path": "app/scripts/write-outlook-token.ps1",
+      "source": "SafeTGDemo/scripts/write-outlook-token.ps1",
+      "sha256": "83cef073dc11f045721fc8e441bc378401986bc1b3efdd09a169055ea96b131d"
+    },
+    {
+      "path": "app/scripts/import-payer-wallet.ps1",
+      "source": "SafeTGDemo/scripts/import-payer-wallet.ps1",
+      "sha256": "2f2ab44c094f041361834fe3179956d24ffc01eeb60c8f6310151e103351384a"
+    },
+    {
+      "path": "app/scripts/open-outlook-authorizer.ps1",
+      "source": "SafeTGDemo/scripts/open-outlook-authorizer.ps1",
+      "sha256": "c108959985763f297d8cbef217bf67c8f7dcf5fe589f731ecb78a66d0e403bdd"
+    },
+    {
+      "path": "app/scripts/read-outlook-token.ps1",
+      "source": "SafeTGDemo/scripts/read-outlook-token.ps1",
+      "sha256": "026e1cf56c353b3a21156b7af0c8199eb6c26c272788cdd58e31b3fb46accc4d"
+    },
+    {
+      "path": "app/scripts/open-wallet-importer.ps1",
+      "source": "SafeTGDemo/scripts/open-wallet-importer.ps1",
+      "sha256": "b97da0dcf02615a04a9d203e7fce89b11967407bc82a57244b7f8f7bfb40f484"
+    },
+    {
+      "path": "app/lib/telegram.mjs",
+      "source": "SafeTGDemo/lib/telegram.mjs",
+      "sha256": "03b81547f012da5dd9a96cc1ac2e092a4721721c859ada2101d120f7498cfb88"
+    },
+    {
+      "path": "app/lib/parser.mjs",
+      "source": "SafeTGDemo/lib/parser.mjs",
+      "sha256": "c5b74ef0680b76f8f77929c64737179a3e6a4a60d0e13b49504501e782fdf482"
+    },
+    {
+      "path": "app/lib/outlook-relay.mjs",
+      "source": "SafeTGDemo/lib/outlook-relay.mjs",
+      "sha256": "376c8a2ec4bf74d460663d342f0007905f8b7a1c7ad64eaf274185594d0cb75e"
+    },
+    {
+      "path": "app/lib/payment.mjs",
+      "source": "SafeTGDemo/lib/payment.mjs",
+      "sha256": "846683cf9ed554da6fa9f41428d1aa668e21912f01eb179964bc0869b71c80a6"
+    },
+    {
+      "path": "app/lib/site-order-queue.mjs",
+      "source": "SafeTGDemo/lib/site-order-queue.mjs",
+      "sha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed"
+    },
+    {
+      "path": "selfhost/site/server.mjs",
+      "source": "LumenResourceHub/server.mjs",
+      "sha256": "a095207df3d0eec124001c0578592e8fa3dbdb4af6a5fe4d5c1de3fd0750b4c3"
+    },
+    {
+      "path": "selfhost/site/runtime.mjs",
+      "source": "LumenResourceHub/runtime.mjs",
+      "sha256": "37087c466206bf3a98d420110dfea727bb1b0aedf3b5ac225369464763d3c4b0"
+    },
+    {
+      "path": "selfhost/site/auth.mjs",
+      "source": "LumenResourceHub/auth.mjs",
+      "sha256": "55a6a48a3af798c17a46c1fcf70ee260c4a9e736e017799dacfe48866d852999"
+    },
+    {
+      "path": "selfhost/site/outlook-mail.mjs",
+      "source": "LumenResourceHub/outlook-mail.mjs",
+      "sha256": "e64355002f3755381aec1ea55114c9f28853832946a6a4f7e87523b5bdac42b8"
+    },
+    {
+      "path": "selfhost/site/sample-mail-attachments.mjs",
+      "source": "LumenResourceHub/sample-mail-attachments.mjs",
+      "sha256": "70dcc3db130e03e072bf24e9d49dd6d35b2601bfc5b22e0d7adc9ed20f6ae337"
+    },
+    {
+      "path": "selfhost/site/site-order-queue.mjs",
+      "source": "LumenResourceHub/site-order-queue.mjs",
+      "sha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed"
+    },
+    {
+      "path": "selfhost/site/initialize.mjs",
+      "source": "LumenResourceHub/initialize.mjs",
+      "sha256": "0695c2314629235d622e08957bf82468a86fbbc278cc96b92c1c2b6ef2be4d66"
+    },
+    {
+      "path": "selfhost/site/package.json",
+      "source": "LumenResourceHub/package.json",
+      "sha256": "fe33ee2da39d32ef9a26f8b2d67a3dc283a775a458a64ad7b717135aa846f6c9"
+    },
+    {
+      "path": "selfhost/site/package-lock.json",
+      "source": "LumenResourceHub/package-lock.json",
+      "sha256": "6d3bf81aaadd8db4a541ebe706f1c6aa180808da92406535bd2e8d1c02f3f491"
+    },
+    {
+      "path": "selfhost/site/dist/server/vinext-server.json",
+      "source": "LumenResourceHub/dist/server/vinext-server.json",
+      "sha256": "f9445e80ac09864598feb952409ea8a8bd983f1855656ae4f0d7db3ce7413104"
+    },
+    {
+      "path": "selfhost/site/dist/server/wrangler.json",
+      "source": "LumenResourceHub/dist/server/wrangler.json",
+      "sha256": "40037e9c9498735a53ecbe4fcaecbf765e98afbbd00b35a63c311843592b8397"
+    },
+    {
+      "path": "selfhost/site/dist/server/vinext-externals.json",
+      "source": "LumenResourceHub/dist/server/vinext-externals.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "selfhost/site/dist/server/index.js",
+      "source": "LumenResourceHub/dist/server/index.js",
+      "sha256": "4012be17bf8779b3cc507ce8e1045ff81bcffa9e25ada6b37370acb5bac9b311"
+    },
+    {
+      "path": "selfhost/site/dist/server/BUILD_ID",
+      "source": "LumenResourceHub/dist/server/BUILD_ID",
+      "sha256": "0862eb638fcf57039700eca018d5ff3069ac159e6684a8ae9dadba5fa9323c1b"
+    },
+    {
+      "path": "selfhost/site/dist/server/vinext-client-assets.js",
+      "source": "LumenResourceHub/dist/server/vinext-client-assets.js",
+      "sha256": "96c138fa74aad1458514f6bd70c369a9cbb092c64575687e365b5eb59a327459"
+    },
+    {
+      "path": "selfhost/site/dist/server/__vite_rsc_assets_manifest.js",
+      "source": "LumenResourceHub/dist/server/__vite_rsc_assets_manifest.js",
+      "sha256": "58e34263102ea6020966a5d3780f09a727c5e351bf098537582948ab6e3018cc"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-C6lKPbAE.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-C6lKPbAE.js",
+      "sha256": "b1eb5675f979eb72eb14b485645bbe41f0547aaadc774d197e3aea6d08d0222b"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-C6SMRLfb.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-C6SMRLfb.js",
+      "sha256": "9490d972294a3cffadf1116ff728804a3f2e5b5c0cf9d73685a60ccbdf72550e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/framework~index~page~page~page~app-route-handler-dispatch-CCbGbOKB.js",
+      "source": "LumenResourceHub/dist/server/_next/static/framework~index~page~page~page~app-route-handler-dispatch-CCbGbOKB.js",
+      "sha256": "7fad7c76e51086577c987e673becf056eec0c40efdb4d1853185c3de2e04a82b"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-CHJh5JEb.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-CHJh5JEb.js",
+      "sha256": "8dae46651c9b3610ea3ee0f163e5888c32a238a21507728408897827f4a647c1"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/framework~index~app-page-cache-render~app-page-cache~page~layout~page~app-route-handler-dispatch-3wubZk4j.js",
+      "source": "LumenResourceHub/dist/server/_next/static/framework~index~app-page-cache-render~app-page-cache~page~layout~page~app-route-handler-dispatch-3wubZk4j.js",
+      "sha256": "a5a50c97df92e84620b6e635f1f5c35774c477a13e7549cfe14344d588919298"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-BPihWYsg.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-BPihWYsg.js",
+      "sha256": "baff971146b181be43e2eb438aee735b7deced97f4452f3566b24c5cf5c784a2"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-prerender-endpoints-BeeU9NUV.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-prerender-endpoints-BeeU9NUV.js",
+      "sha256": "ece2f0109da36633f30c173daf9482f2a8e7260a7cfd97d74b154ae1842e235f"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/rolldown-runtime-DUnMT5BP.js",
+      "source": "LumenResourceHub/dist/server/_next/static/rolldown-runtime-DUnMT5BP.js",
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-CyACSnxz.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-CyACSnxz.js",
+      "sha256": "9a4454d63abde046e225818604a1d053f27958c257f361efac8317fb12eab9d5"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/cache-headers-BrFe1Cs4.js",
+      "source": "LumenResourceHub/dist/server/_next/static/cache-headers-BrFe1Cs4.js",
+      "sha256": "09cc21af0b3cf184c1a3cda9ab77fdd801a24f20f7114b34581fb270bb061a5e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-CivvkzBN.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-CivvkzBN.js",
+      "sha256": "1c0645c4ed78a3163cac5030c99c7d30ff93adbc7f78432cad5efa0d0b8f9a8f"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/headers-j0QAsRga.js",
+      "source": "LumenResourceHub/dist/server/_next/static/headers-j0QAsRga.js",
+      "sha256": "d6db60f6759b11234d865969c3b08332223067a40da1fa0d77f6b567d12f81f0"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/framework~index~app-page-cache-render~app-page-cache~page~route~route~route~route~route~rou~km1kmdhs-DYBH99xq.js",
+      "source": "LumenResourceHub/dist/server/_next/static/framework~index~app-page-cache-render~app-page-cache~page~route~route~route~route~route~rou~km1kmdhs-DYBH99xq.js",
+      "sha256": "4f686187dcd97b5d9eef7f152f93eaf0b53172f59e748a8ecf410a20b326e9f8"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-wxyTtK9x.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-wxyTtK9x.js",
+      "sha256": "d7217b1c27d2668cc1d7e1b80fb68957e216b9c3e84d3cfb890efd5b7e37dd70"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/record-Cz3MrZeO.js",
+      "source": "LumenResourceHub/dist/server/_next/static/record-Cz3MrZeO.js",
+      "sha256": "b9bdb7b7d0e4844d241dba61104d18111d61ef92af3f137d15749531d276f9cf"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/page-BCWtk_FX.js",
+      "source": "LumenResourceHub/dist/server/_next/static/page-BCWtk_FX.js",
+      "sha256": "258e828850fd6e31c250331c289d68f4ad256ce73d5f8c7326e20a8cd81dec1c"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/personal-details-BCpSeahK.js",
+      "source": "LumenResourceHub/dist/server/_next/static/personal-details-BCpSeahK.js",
+      "sha256": "e9b9f4c6afb93cf25988f20e93a08d9122e3924d5d39592e57c66d5974a2ce77"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-route-handler-dispatch-DC_UAi4w.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-route-handler-dispatch-DC_UAi4w.js",
+      "sha256": "f53da3131aa9f5f60e292893703f3469c40f10500328767a93f3a156f6472681"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-DYnmReR52.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-DYnmReR52.js",
+      "sha256": "a8bbdb8c9703e16e2a045675d5448ac55ea23ee560d0220f26c006b567a4c309"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/warehouse-email-C6zpeld9.js",
+      "source": "LumenResourceHub/dist/server/_next/static/warehouse-email-C6zpeld9.js",
+      "sha256": "223a3f25db008bd4f794467b77978f92d34a01d990c750b837cc50dee2a3c1ac"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-Df4BIbtX.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-Df4BIbtX.js",
+      "sha256": "efb77e5b65dc964008062c6f17f61e705fa907bebc0364d508d22a3ab2748d18"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/framework~index-BD5mVXH8.js",
+      "source": "LumenResourceHub/dist/server/_next/static/framework~index-BD5mVXH8.js",
+      "sha256": "ae0be9064ff00d22d1de8322529d234c44acfda08a5671a648f630fe69157a2e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/db-BPPk2v0u.js",
+      "source": "LumenResourceHub/dist/server/_next/static/db-BPPk2v0u.js",
+      "sha256": "f5b8d164de440e9aa148a3f36caeb5aa8561a43448c402c1c272c4a9d4d5db1e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-segment-config-DM07bmK3.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-segment-config-DM07bmK3.js",
+      "sha256": "9fec2652a15ac5863856deb5a19cdef2da60e92c60c05fd7af17430f52950cc0"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-Bk5gQsJp.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-Bk5gQsJp.js",
+      "sha256": "ca5ffb68cacc50ec6ba5b3c94d7e5cda9d800e466f468dd6426a8379a3ae6172"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-kGjPXlTv.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-kGjPXlTv.js",
+      "sha256": "d1bf440aac57602221d781e1a506fa97d0e8009241e5b58681513d0058ef514c"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/text-stream-FQk3IL60.js",
+      "source": "LumenResourceHub/dist/server/_next/static/text-stream-FQk3IL60.js",
+      "sha256": "8b2ffed58d8abb25fcac0fca3f14258d339781926c626742082525c754844f08"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/sample-attachment-CV4WL7y1.js",
+      "source": "LumenResourceHub/dist/server/_next/static/sample-attachment-CV4WL7y1.js",
+      "sha256": "4608538ddd25287006dbe5f17bcc3f729bb74241bb819282441a3d4f4931af71"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/isr-cache-BmWbsOO3.js",
+      "source": "LumenResourceHub/dist/server/_next/static/isr-cache-BmWbsOO3.js",
+      "sha256": "670e394f87ee470d6d97c46204dcabc8966e3d5ec8e50a09e96cfac809df949a"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-Ba_P-fU5.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-Ba_P-fU5.js",
+      "sha256": "0178744a6b7985213b37b765e9e87d2ac74def9c56eb6a0ce0550d2b588fdeaa"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-C7MwmjGP.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-C7MwmjGP.js",
+      "sha256": "6f3fb1e0672fbf5856654aaa436f81a20372d3a7aadd8228784c46bebda48674"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-page-cache-C4QpYzdr.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-page-cache-C4QpYzdr.js",
+      "sha256": "317e913f5545f94c30e6d10439b60d213c86766e93244bc4fefbe7c937bbb552"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/implicit-tags-8e5ckVjO.js",
+      "source": "LumenResourceHub/dist/server/_next/static/implicit-tags-8e5ckVjO.js",
+      "sha256": "9054d9cf130d139a68b44e275f0494d1db1c9fa7aef469d93dde1e0dd499fcb5"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/addrs-catalog-CnRraqSq.js",
+      "source": "LumenResourceHub/dist/server/_next/static/addrs-catalog-CnRraqSq.js",
+      "sha256": "93fdec29aa5831c8876051628185686e4e19d3916825d42f4d611680595301fc"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-B0cmw4Rg.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-B0cmw4Rg.js",
+      "sha256": "71e5b6f025493f8cb2ed12c4ad67f096a04750aea7b9966d6d7da1a425496b51"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/telegram-settings-B_unogY4.js",
+      "source": "LumenResourceHub/dist/server/_next/static/telegram-settings-B_unogY4.js",
+      "sha256": "a5714168c59f566d896bfb276ed5d6689ef3b4ba3ebbdab96271d941dd4dbb66"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-BGXuM_eb.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-BGXuM_eb.js",
+      "sha256": "01bace65587006243ae79fdd1fd8898b6191f9014d0a5ddb363cec67fc964802"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-JywDDV0k.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-JywDDV0k.js",
+      "sha256": "b2596c031029dacb5da779dab410af9740e5306196c5a6e2cf76a3554c7f11f8"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/sample-document-nlkd6ShP.js",
+      "source": "LumenResourceHub/dist/server/_next/static/sample-document-nlkd6ShP.js",
+      "sha256": "75a94b5a8eb9c66ed92b834a0a7b06ede7ec72f9d0e460a463fa8b83264ec554"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/rsc-OQPH-Mal.js",
+      "source": "LumenResourceHub/dist/server/_next/static/rsc-OQPH-Mal.js",
+      "sha256": "2c7aa3874505c74a0f4e34c32d76e0c77f7efb07f4c157222d202b9f9db7d767"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/navigation.react-server-DGh7NMpw.js",
+      "source": "LumenResourceHub/dist/server/_next/static/navigation.react-server-DGh7NMpw.js",
+      "sha256": "aab2110cac709bc1bb79c20540af03a1f3938d0c34131cdc821805cf8d799ace"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/navigation-errors-g9tb8E7B.js",
+      "source": "LumenResourceHub/dist/server/_next/static/navigation-errors-g9tb8E7B.js",
+      "sha256": "a5257f8f454f21c71e610a7d4f71e3d34162dc25390e42132d549a771efd30e4"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/page-DB-zfCOf.js",
+      "source": "LumenResourceHub/dist/server/_next/static/page-DB-zfCOf.js",
+      "sha256": "4c12e418625e7c4c21c24106c2bf9f41cf72a12bf9c5a846d250176899ef0748"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/navigation-runtime-BOsX1HmQ.js",
+      "source": "LumenResourceHub/dist/server/_next/static/navigation-runtime-BOsX1HmQ.js",
+      "sha256": "4cc54b99c2904db865daf112abab2214060a903f8bed83881079ed33a65102a2"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/esimaccess-BSFxMgzZ.js",
+      "source": "LumenResourceHub/dist/server/_next/static/esimaccess-BSFxMgzZ.js",
+      "sha256": "91ef60f981fcc15e1ea5173f6c47d1b740c1e72a4b9899a4a148011554292db5"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/redirect-digest-C-06pD9r.js",
+      "source": "LumenResourceHub/dist/server/_next/static/redirect-digest-C-06pD9r.js",
+      "sha256": "b92ec9aa7c6dcd33cfbe31e79016b8e95e069db3104601e782c0eab8aa9d331b"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/headers-BBgHuOI_.js",
+      "source": "LumenResourceHub/dist/server/_next/static/headers-BBgHuOI_.js",
+      "sha256": "dea2c425b42d7d36acb126e0f8925d1d3685c307257cb8c0924ae88718883baf"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-BwLUy8VD.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-BwLUy8VD.js",
+      "sha256": "ea829eeb02c0a99e54fda606908f2a84030b229d000f93dd6649c0354f795361"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-BJYAg1_B.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-BJYAg1_B.js",
+      "sha256": "3ff586a94f90401f8896ae9f35895c3ada95d1d013fc6f63cb5f56bb1c9a028e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/security-crypto-B3aZ1TnM.js",
+      "source": "LumenResourceHub/dist/server/_next/static/security-crypto-B3aZ1TnM.js",
+      "sha256": "6cd3b348a4ace848df7cc7587dbb02d7d85b0add33404fb6980b3c92420f6df1"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/root-params-CarSBhWB.js",
+      "source": "LumenResourceHub/dist/server/_next/static/root-params-CarSBhWB.js",
+      "sha256": "b1dbb34ba341adf166a683d8a2382ddd30e511bbdc7099280f75771becf39a7e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-page-stream-CepcZQ_S.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-page-stream-CepcZQ_S.js",
+      "sha256": "cd32f449d81387171d632fb9fb68080c08b239f444db4f0e56de6c524587f28b"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/resource-access-CnhjFS2I.js",
+      "source": "LumenResourceHub/dist/server/_next/static/resource-access-CnhjFS2I.js",
+      "sha256": "671b1eaafb7af3a53438bf836f61fbe8fe87f94fbba6bb3e5a3e085102624c12"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-static-generation-DhOT5QrC.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-static-generation-DhOT5QrC.js",
+      "sha256": "71451721ae4a42108e9ed32567cd9d9861beb4952215b0fd57ffc373cd3edc01"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-CCvDhVm7.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-CCvDhVm7.js",
+      "sha256": "21451353a116a0439652a9744eb52c806d3a4d5a802bb45d119b4c5e88db72ef"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-BopCDQTN.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-BopCDQTN.js",
+      "sha256": "4e0a58682eabe91cb942db2015e1a0433aaa324ac91cb6e60afd49e087f8bb3a"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/chatgpt-auth-CAwUFDgI.js",
+      "source": "LumenResourceHub/dist/server/_next/static/chatgpt-auth-CAwUFDgI.js",
+      "sha256": "76212d632dc04b6274d7897941b55eff0dc577ebc2b4644c28df03a6090c6ee6"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-page-cache-render-DcdIR4jr.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-page-cache-render-DcdIR4jr.js",
+      "sha256": "557c666a1f94a870093f4730e828a57daeb4c5b803ae77f95b186c5954260134"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-D6Lbw8n_2.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-D6Lbw8n_2.js",
+      "sha256": "39901cb387e298984ced92fbeb1ee340771edabcd88504080bd55c22258aae21"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-CN1JMGtj.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-CN1JMGtj.js",
+      "sha256": "501128ca9687f807df73163c92e70da247cd9945fe4c58ca6c54549b66f3255e"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-C7_zJqWV.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-C7_zJqWV.js",
+      "sha256": "2d5a1fbbc672d02790e825de624b24e9069dc4f9e592196314990dcff296a065"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/mail-delivery-dVzEPzKO.js",
+      "source": "LumenResourceHub/dist/server/_next/static/mail-delivery-dVzEPzKO.js",
+      "sha256": "c549628c1b28350bbbbf8092812bd60c327f10a9f352d43111ec1f5b7a4b9d6f"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-B-Bc5fxq.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-B-Bc5fxq.js",
+      "sha256": "30d2d2c5aa7dd767925245680b57af976086c1353f0c0e0661f7b69efd0d5e60"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/route-DEcLgGm3.js",
+      "source": "LumenResourceHub/dist/server/_next/static/route-DEcLgGm3.js",
+      "sha256": "71f03fc46db28855b949569c250f0326f6db51e014262dc06583c5db8d57b591"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-prerender-static-params-BE7VGYFM.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-prerender-static-params-BE7VGYFM.js",
+      "sha256": "b745f6457a8dafa23362023eaac68ef778090bacb033479148ce149e96db89c8"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/app-page-cache-finalizer-BfjeAPq-.js",
+      "source": "LumenResourceHub/dist/server/_next/static/app-page-cache-finalizer-BfjeAPq-.js",
+      "sha256": "28652c5ed07881f26ceb671e610a7a956ef44e788d143911b5c2b8ea65ae17c5"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/page-f3gy2DWC.js",
+      "source": "LumenResourceHub/dist/server/_next/static/page-f3gy2DWC.js",
+      "sha256": "8531f459cca607ffcfb1fe6f3e62f4a43fc386078fdf4fa786ce8f9729328d06"
+    },
+    {
+      "path": "selfhost/site/dist/server/_next/static/css/index.BVpdX1Ew.css",
+      "source": "LumenResourceHub/dist/server/_next/static/css/index.BVpdX1Ew.css",
+      "sha256": "16ddb1672465525ac682ccae9cf32ab0b5c81782a4f3f4acac4fba66afdba92b"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/vinext-server.json",
+      "source": "LumenResourceHub/dist/server/ssr/vinext-server.json",
+      "sha256": "f9445e80ac09864598feb952409ea8a8bd983f1855656ae4f0d7db3ce7413104"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/index.js",
+      "source": "LumenResourceHub/dist/server/ssr/index.js",
+      "sha256": "6cce42a4d776f387928255274ff2e2b0ea338c98889769b069a083b62aae8727"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/vinext-client-assets.js",
+      "source": "LumenResourceHub/dist/server/ssr/vinext-client-assets.js",
+      "sha256": "96c138fa74aad1458514f6bd70c369a9cbb092c64575687e365b5eb59a327459"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/__vite_rsc_assets_manifest.js",
+      "source": "LumenResourceHub/dist/server/ssr/__vite_rsc_assets_manifest.js",
+      "sha256": "58e34263102ea6020966a5d3780f09a727c5e351bf098537582948ab6e3018cc"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/refresh-cw-D3m0rizt.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/refresh-cw-D3m0rizt.js",
+      "sha256": "39d8281a31beb4c193af86c882ec52875a23ae54b45d80ef520d991a44adaeb6"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/address-order-status-KUcGNkvB.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/address-order-status-KUcGNkvB.js",
+      "sha256": "6ff645fb04a1f820b4f237e4a0e6d02e3371c2854d11d34e0fc1dcfc04452ae0"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/streamed-icons-C-LGb6Fs.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/streamed-icons-C-LGb6Fs.js",
+      "sha256": "bc2f0e070a49732231e8516fd3b78f49de63dff63b5d27db4b5b5f7ea2a4b228"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/error-boundary-mJ-SsUww.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/error-boundary-mJ-SsUww.js",
+      "sha256": "013dad3c0ea62859d75ef290703dc2547d9df0b1222d9235cc9c6011c5b1d806"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/status-poller-Dacv75ST.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/status-poller-Dacv75ST.js",
+      "sha256": "a7fd8e0f9b3674773bdb605f8e2499ea032786e95fb0f132fe0f3d30d196ff81"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/page-VMOTd35u.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/page-VMOTd35u.js",
+      "sha256": "b5aa89532ee90a034b30681dd8fb13991c3f4105d3b159ce3e8ae59f7e7fd1f0"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/static.edge-IqRtACPa.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/static.edge-IqRtACPa.js",
+      "sha256": "9aa4706e79212b5ce4072eb3d7600afd525dc33bf2f7a66f64a94ffbc9fd7149"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/app-prefetch-fetch-queue-BTKEsFpn.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/app-prefetch-fetch-queue-BTKEsFpn.js",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/mail-delivery-center-DIbeW2T6.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/mail-delivery-center-DIbeW2T6.js",
+      "sha256": "12b51662f46dcd089aea533f4c0799612913591030ada0ea4f4ff6c3d61f69c2"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/loader-circle-CoNHI1Wl.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/loader-circle-CoNHI1Wl.js",
+      "sha256": "8e9ccf31c8f6fbf004a178e9ec70d33cd2d302a269355be9b8c7c4790a916dee"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/app-router-scroll-CAnSvlwI.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/app-router-scroll-CAnSvlwI.js",
+      "sha256": "8aa68c48f347896ce1bc31ef186746a7cd9ae043f3e4e39a3856f13d1061bb3c"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/search-DO9-hVZR.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/search-DO9-hVZR.js",
+      "sha256": "5d163eb03487dd52ac252c48c1efde79c59648688e1de0a6c43a14ac7c58426b"
+    },
+    {
+      "path": "selfhost/site/dist/server/ssr/_next/static/layout-segment-context-DpkjgvEb.js",
+      "source": "LumenResourceHub/dist/server/ssr/_next/static/layout-segment-context-DpkjgvEb.js",
+      "sha256": "1621400fe5e17f387c4d38c41080771328053992ebc7c01f43b5ea78225580d6"
+    },
+    {
+      "path": "selfhost/site/dist/server/.vite/manifest.json",
+      "source": "LumenResourceHub/dist/server/.vite/manifest.json",
+      "sha256": "56a3246394e170f1f28ce153e97ff426f3a732e2f8b8e6406035f8520f3b1f16"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/hosting.json",
+      "source": "LumenResourceHub/dist/.openai/hosting.json",
+      "sha256": "15489c0e486b7c8b54581a9795c8df9cdfe79f24fe160487e6ccee45e8f284b0"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0004_unique_luckman.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0004_unique_luckman.sql",
+      "sha256": "9f37232c67b85954aa01250185cb2e350d1320a53867ca68b54c69243cee8613"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0001_fuzzy_skullbuster.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0001_fuzzy_skullbuster.sql",
+      "sha256": "7e6226ec268fa444a0e170a8052dc0cd5098f160cb40e27c4351e57d27efcada"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0007_massive_talisman.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0007_massive_talisman.sql",
+      "sha256": "e4f5fc050aa9b7caf68aad71af92a93c70ecb8dd497fa010f78ddb8ee6bbd701"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0006_known_ender_wiggin.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0006_known_ender_wiggin.sql",
+      "sha256": "e0a86a024de6c7c7221c0da2a177fa1ae4fffbedf2913c2d73de8c65e7bafbfb"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0003_dark_paladin.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0003_dark_paladin.sql",
+      "sha256": "83377ef516c3cda76a5db96eda55f864a96475c8f185f666c91c011c4492f023"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0005_absent_swarm.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0005_absent_swarm.sql",
+      "sha256": "66d5b6e41b700556b319ff8bd980f54d292b97e99e7eb17033ab4ae0432e3aad"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0002_sour_jack_flag.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0002_sour_jack_flag.sql",
+      "sha256": "227dbba65b285a2702a2e17ea9eb9e348aa8dc1153a15a005a89bff5dbc9b82f"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/0000_empty_killraven.sql",
+      "source": "LumenResourceHub/dist/.openai/drizzle/0000_empty_killraven.sql",
+      "sha256": "b3363163da673e543a37d235a8963227593feeb5667417c0ae26226ff8b2d7b2"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0007_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0007_snapshot.json",
+      "sha256": "bae4ef2d5a33ae873c99a4279c82fe812c9b822c2211670780bb39a1115e7f94"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0003_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0003_snapshot.json",
+      "sha256": "b4a010db5c263690cf8efbfd64dc9531ec92804d05989e7703d7fe9a280ce4c6"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0004_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0004_snapshot.json",
+      "sha256": "a8f0aedd50c8c78297808ace9f90190a95d7f846cb7919e24e00d90d50847fad"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0000_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0000_snapshot.json",
+      "sha256": "2de61b4dcf24d85de1b7255668a1aebeb133a7741996851e6a7597ccd8b535b1"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/_journal.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/_journal.json",
+      "sha256": "83707552cb2e8464125bf6da9d6391a8f86273e98adc25ff1da77afdc6436734"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0001_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0001_snapshot.json",
+      "sha256": "c69b497f0a454a41e9a2f732f09594713f150f547b76b7710ac655784efd010c"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0005_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0005_snapshot.json",
+      "sha256": "61026a909df21e0e4b4a10fb76971bbad560f7fd2d71c71bcb104988613caf81"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0002_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0002_snapshot.json",
+      "sha256": "d5ffcc37db33f1c2c6d8997b3834647c05c42225ae6627d27d13b8ea21cd6503"
+    },
+    {
+      "path": "selfhost/site/dist/.openai/drizzle/meta/0006_snapshot.json",
+      "source": "LumenResourceHub/dist/.openai/drizzle/meta/0006_snapshot.json",
+      "sha256": "cf7238422700723decdd478c13adba0e7dc2c0ece0e4f2229434eb078f9e0d0a"
+    },
+    {
+      "path": "selfhost/site/dist/client/_headers",
+      "source": "LumenResourceHub/dist/client/_headers",
+      "sha256": "2148fb62669525f5091532d36d4a48a8da95b08a5a797bacde75d2fe981351bb"
+    },
+    {
+      "path": "selfhost/site/dist/client/.assetsignore",
+      "source": "LumenResourceHub/dist/client/.assetsignore",
+      "sha256": "14ce8d5101f6d8f172242053466d44f5e2cd622dee81db53c14bd445c25d1942"
+    },
+    {
+      "path": "selfhost/site/dist/client/vinext-client-entry-manifest.json",
+      "source": "LumenResourceHub/dist/client/vinext-client-entry-manifest.json",
+      "sha256": "438d64160900e823144200780cd3b2d02d35cc7bc7fa56788b2a68baccdf439c"
+    },
+    {
+      "path": "selfhost/site/dist/client/favicon.svg",
+      "source": "LumenResourceHub/dist/client/favicon.svg",
+      "sha256": "e6d2e59b7b5bbb0342e0fb496dfc262decbfe4426bbb7b047aec8d467d1dc6f7"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/css/index.BVpdX1Ew.css",
+      "source": "LumenResourceHub/dist/client/_next/static/css/index.BVpdX1Ew.css",
+      "sha256": "16ddb1672465525ac682ccae9cf32ab0b5c81782a4f3f4acac4fba66afdba92b"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/page-Ci9TnZt7.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/page-Ci9TnZt7.js",
+      "sha256": "8247e274ed469005d29326e3fa0babceda99039c4dab41af38f6f8681809ed2c"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/framework-D_rUT4EX.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/framework-D_rUT4EX.js",
+      "sha256": "939d0fabebb3b2f01753bb866b067d8d3384fb06da19f0e6557609d3b1a9f4f7"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/status-poller-Bb1sAtPi.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/status-poller-Bb1sAtPi.js",
+      "sha256": "53a2112c191015056cf72f3e00fb23af862271f1fdf03090933b43026fa0de29"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/rolldown-runtime-C60lm6uB.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/rolldown-runtime-C60lm6uB.js",
+      "sha256": "5db5ba82eef00d1dee7e86e663098c9427d01183a88d357437daff295aec3e75"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/streamed-icons-DNogeH_Z.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/streamed-icons-DNogeH_Z.js",
+      "sha256": "7eb2a6b44b9c0faa7300c8dd36b0fae7a35d9f65e139dd9046b3df193aa83bc8"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/loader-circle-t0bi-DF1.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/loader-circle-t0bi-DF1.js",
+      "sha256": "8b5ff88739abd888079d8b65e30e86b8966d388635de4bb8ba733b775c7fa3d5"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/index-Dy9QkPAh.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/index-Dy9QkPAh.js",
+      "sha256": "1788ae96c69f4ab92a2aa723dcfcc9246e30bddec39d60456103ac64b8d0a84d"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
+      "sha256": "abb5c1d5d7e212e80e4a23b9f6a09ff91217176bfe08fbcf3a5dd570180881aa"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/app-route-prefetch-policy-C_8SGXLI.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/app-route-prefetch-policy-C_8SGXLI.js",
+      "sha256": "381e1a363b59f585deb92681d712d910dd8fe8e2cabc07bee14a4e13dc5123a3"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/refresh-cw-CgSh9I4j.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/refresh-cw-CgSh9I4j.js",
+      "sha256": "cd138e8340e8955af80f32b47a24b3b91fe38ea261daa65ff1a0a5da1d44405d"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/search-BpHHK89T.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/search-BpHHK89T.js",
+      "sha256": "265a167d444b3db2fab0b2ba1a7b3d547547a6c5fdc71fae54f1ae016b3c81d6"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/mail-delivery-center-DFaQJscx.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/mail-delivery-center-DFaQJscx.js",
+      "sha256": "5b03374d84a82b481974d4897b57ba3b551dbbd31c357c4f2443e1904308e06c"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/chunks/layout-segment-context-C3MFLXyX.js",
+      "source": "LumenResourceHub/dist/client/_next/static/chunks/layout-segment-context-C3MFLXyX.js",
+      "sha256": "dcd584fa6e6a9f3175f30611a953104e3e5177b6b4848dda9e33b13a93569d14"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/83f23e6c-ed4d-4eb4-b058-363424dff477/_ssgManifest.js",
+      "source": "LumenResourceHub/dist/client/_next/static/83f23e6c-ed4d-4eb4-b058-363424dff477/_ssgManifest.js",
+      "sha256": "653f3e53e89b4f8548ff86c19e92bb3c6b84b6be7485a320b1e00893ed877479"
+    },
+    {
+      "path": "selfhost/site/dist/client/_next/static/83f23e6c-ed4d-4eb4-b058-363424dff477/_buildManifest.js",
+      "source": "LumenResourceHub/dist/client/_next/static/83f23e6c-ed4d-4eb4-b058-363424dff477/_buildManifest.js",
+      "sha256": "47f02b34be6dc481257b6efce4c19e19111f37ef5c437f8ffed44f0da97fa9bb"
+    },
+    {
+      "path": "selfhost/site/dist/client/.vite/manifest.json",
+      "source": "LumenResourceHub/dist/client/.vite/manifest.json",
+      "sha256": "9b0053bae81361df940fda27bfb84554cb159d4d0d8383dd9657f47ec7feb91e"
+    },
+    {
+      "path": "selfhost/site/drizzle/0004_unique_luckman.sql",
+      "source": "LumenResourceHub/drizzle/0004_unique_luckman.sql",
+      "sha256": "9f37232c67b85954aa01250185cb2e350d1320a53867ca68b54c69243cee8613"
+    },
+    {
+      "path": "selfhost/site/drizzle/0001_fuzzy_skullbuster.sql",
+      "source": "LumenResourceHub/drizzle/0001_fuzzy_skullbuster.sql",
+      "sha256": "7e6226ec268fa444a0e170a8052dc0cd5098f160cb40e27c4351e57d27efcada"
+    },
+    {
+      "path": "selfhost/site/drizzle/0007_massive_talisman.sql",
+      "source": "LumenResourceHub/drizzle/0007_massive_talisman.sql",
+      "sha256": "e4f5fc050aa9b7caf68aad71af92a93c70ecb8dd497fa010f78ddb8ee6bbd701"
+    },
+    {
+      "path": "selfhost/site/drizzle/0006_known_ender_wiggin.sql",
+      "source": "LumenResourceHub/drizzle/0006_known_ender_wiggin.sql",
+      "sha256": "e0a86a024de6c7c7221c0da2a177fa1ae4fffbedf2913c2d73de8c65e7bafbfb"
+    },
+    {
+      "path": "selfhost/site/drizzle/0003_dark_paladin.sql",
+      "source": "LumenResourceHub/drizzle/0003_dark_paladin.sql",
+      "sha256": "83377ef516c3cda76a5db96eda55f864a96475c8f185f666c91c011c4492f023"
+    },
+    {
+      "path": "selfhost/site/drizzle/0005_absent_swarm.sql",
+      "source": "LumenResourceHub/drizzle/0005_absent_swarm.sql",
+      "sha256": "66d5b6e41b700556b319ff8bd980f54d292b97e99e7eb17033ab4ae0432e3aad"
+    },
+    {
+      "path": "selfhost/site/drizzle/0002_sour_jack_flag.sql",
+      "source": "LumenResourceHub/drizzle/0002_sour_jack_flag.sql",
+      "sha256": "227dbba65b285a2702a2e17ea9eb9e348aa8dc1153a15a005a89bff5dbc9b82f"
+    },
+    {
+      "path": "selfhost/site/drizzle/0000_empty_killraven.sql",
+      "source": "LumenResourceHub/drizzle/0000_empty_killraven.sql",
+      "sha256": "b3363163da673e543a37d235a8963227593feeb5667417c0ae26226ff8b2d7b2"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0007_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0007_snapshot.json",
+      "sha256": "bae4ef2d5a33ae873c99a4279c82fe812c9b822c2211670780bb39a1115e7f94"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0003_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0003_snapshot.json",
+      "sha256": "b4a010db5c263690cf8efbfd64dc9531ec92804d05989e7703d7fe9a280ce4c6"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0004_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0004_snapshot.json",
+      "sha256": "a8f0aedd50c8c78297808ace9f90190a95d7f846cb7919e24e00d90d50847fad"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0000_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0000_snapshot.json",
+      "sha256": "2de61b4dcf24d85de1b7255668a1aebeb133a7741996851e6a7597ccd8b535b1"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/_journal.json",
+      "source": "LumenResourceHub/drizzle/meta/_journal.json",
+      "sha256": "83707552cb2e8464125bf6da9d6391a8f86273e98adc25ff1da77afdc6436734"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0001_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0001_snapshot.json",
+      "sha256": "c69b497f0a454a41e9a2f732f09594713f150f547b76b7710ac655784efd010c"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0005_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0005_snapshot.json",
+      "sha256": "61026a909df21e0e4b4a10fb76971bbad560f7fd2d71c71bcb104988613caf81"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0002_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0002_snapshot.json",
+      "sha256": "d5ffcc37db33f1c2c6d8997b3834647c05c42225ae6627d27d13b8ea21cd6503"
+    },
+    {
+      "path": "selfhost/site/drizzle/meta/0006_snapshot.json",
+      "source": "LumenResourceHub/drizzle/meta/0006_snapshot.json",
+      "sha256": "cf7238422700723decdd478c13adba0e7dc2c0ece0e4f2229434eb078f9e0d0a"
+    }
+  ]
+}

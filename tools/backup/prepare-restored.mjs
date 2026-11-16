@@ -1,0 +1,24 @@
+import fs from 'node:fs';import path from 'node:path';import {spawnSync} from 'node:child_process';import {randomBytes} from 'node:crypto';
+const [snapshot,botRoot,siteRoot,origin,mode]=process.argv.slice(2);
+const botFile=path.join(botRoot,'runtime-config.json'),siteFile=path.join(siteRoot,'config/runtime.json');
+const bot=JSON.parse(fs.readFileSync(botFile,'utf8')),site=JSON.parse(fs.readFileSync(siteFile,'utf8'));
+const portable=JSON.parse(fs.readFileSync(path.join(snapshot,'portable-secrets.json'),'utf8'));
+if(portable.format!=='lumen-portable-secrets-v1'||!/^0x[0-9a-fA-F]{64}$/.test(portable.payerPrivateKey))throw new Error('Invalid portable wallet');
+const wallet=spawnSync(process.execPath,[path.join(botRoot,'wallet-address.mjs')],{input:portable.payerPrivateKey,encoding:'utf8'});
+if(wallet.status!==0)throw new Error('Wallet validation failed');
+const metadata=JSON.parse(fs.readFileSync(path.join(botRoot,'secrets/payer-wallet.json'),'utf8'));
+if(JSON.parse(wallet.stdout).address.toLowerCase()!==metadata.address.toLowerCase())throw new Error('Wallet address does not match backup');
+const script=String.raw`$ErrorActionPreference='Stop';$v=[Console]::In.ReadToEnd()|ConvertFrom-Json;$encoding=[Text.UTF8Encoding]::new($false);foreach($item in @(@{name='payer-private-key.dpapi';value=$v.payerPrivateKey},@{name='outlook-refresh-token.dpapi';value=$v.outlookRefreshToken})){$secure=ConvertTo-SecureString $item.value -AsPlainText -Force;$encrypted=ConvertFrom-SecureString $secure;[IO.File]::WriteAllText((Join-Path $v.secretRoot $item.name),$encrypted,$encoding)}`;
+const wrapped=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-EncodedCommand',Buffer.from(script,'utf16le').toString('base64')],{input:JSON.stringify({...portable,secretRoot:path.join(botRoot,'secrets')}),encoding:'utf8'});
+if(wrapped.status!==0)throw new Error('DPAPI import failed. Run restore in elevated PowerShell inside the logged-in desktop session, not WinRM. No services were started');
+const old={paymentMode:bot.paymentMode,paymentLiveApproval:bot.paymentLiveApproval,outlookRelayEnabled:bot.outlookRelay?.enabled,origin:site.origin};
+fs.writeFileSync(path.join(botRoot,'restore-activation.private.json'),JSON.stringify(old),{mode:0o600});
+bot.paymentMode='dry-run';bot.paymentLiveApproval='';if(bot.outlookRelay)bot.outlookRelay.enabled=false;
+bot.siteOrderQueueDirectory=path.join(botRoot,'data/site-order-queue');bot.orderCallbackUrl=origin+'/api/address-orders/callback';
+site.origin=origin;site.aliasOrigins=[];site.siteOrderQueueDirectory=bot.siteOrderQueueDirectory;site.bindings.ADDRESS_ORDER_CALLBACK_TOKEN=bot.orderCallbackToken;
+fs.mkdirSync(bot.siteOrderQueueDirectory,{recursive:true});
+const held=[];for(const job of fs.readdirSync(bot.siteOrderQueueDirectory,{withFileTypes:true})){if(!job.isDirectory())continue;const file=path.join(bot.siteOrderQueueDirectory,job.name,'pending.json');if(fs.existsSync(file)){fs.renameSync(file,path.join(bot.siteOrderQueueDirectory,job.name,'held-after-restore.json'));held.push(job.name);}}
+fs.writeFileSync(botFile,JSON.stringify(bot,null,2));fs.writeFileSync(siteFile,JSON.stringify(site,null,2));
+if(mode==='Automation')fs.writeFileSync(path.join(botRoot,'standalone-config.private.json'),JSON.stringify({port:8770,host:'127.0.0.1',origin,accessToken:randomBytes(32).toString('base64url'),callbackToken:bot.orderCallbackToken,queueDirectory:bot.siteOrderQueueDirectory,database:path.join(botRoot,'standalone-data/orders.sqlite')},null,2));
+fs.writeFileSync(path.join(botRoot,'restore-state.json'),JSON.stringify({mode,origin,heldQueueJobs:held,servicesStarted:false,walletAddressVerified:true,dpapiRewrapped:true},null,2));
+console.log(JSON.stringify({prepared:true,mode,heldQueueJobs:held.length,dpapiRewrapped:true,paymentMode:'dry-run',servicesStarted:false}));

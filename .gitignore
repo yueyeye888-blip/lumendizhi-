@@ -23,3 +23,13 @@ Thumbs.db
 .tmp/
 *.zip
 *.tar.gz
+
+# Full backup: only authenticated ciphertext is public
+*.private.json
+*RECOVERY-KEY*
+*.enc
+*.decrypting
+.private-lumen-backup/
+# Exact production web build is intentional
+!selfhost/site/dist/
+!selfhost/site/dist/**
