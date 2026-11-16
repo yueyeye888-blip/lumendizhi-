@@ -158,7 +158,9 @@
     {
       "path": "app/lib/outlook-relay.mjs",
       "source": "SafeTGDemo/lib/outlook-relay.mjs",
-      "sha256": "376c8a2ec4bf74d460663d342f0007905f8b7a1c7ad64eaf274185594d0cb75e"
+      "sha256": "25d54ff8f49b0a9b3416241ea9ebb7539bd49740eef57e7f41f9d91fac97daf7",
+      "snapshotSha256": "376c8a2ec4bf74d460663d342f0007905f8b7a1c7ad64eaf274185594d0cb75e",
+      "overlay": "20261116-verification-and-mail-delivery"
     },
     {
       "path": "app/lib/payment.mjs",
@@ -975,7 +977,13 @@
       "source": "post-snapshot overlay",
       "sha256": "545e6f7e5a9eca88eab80a9e0c5eb73666543cbacea43972f3d5faaa0ed1b082",
       "overlay": "20261116-human-verification-wait"
+    },
+    {
+      "path": "app/tests/pdf-only-delivery.test.mjs",
+      "source": "post-snapshot overlay",
+      "sha256": "ee920693ece1f2531926ab970f4be105790381e994900cb9c2e61ae4dde2a2e8",
+      "overlay": "20261116-verification-and-mail-delivery"
     }
   ],
-  "overlay": "20261116-human-verification-wait"
+  "overlay": "20261116-verification-and-mail-delivery"
 }

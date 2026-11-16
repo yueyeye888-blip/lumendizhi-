@@ -264,6 +264,7 @@ export async function queueOutlookDelivery(settings, profile, payment) {
       createdAt: now.toISOString(),
       readyAfter: new Date(now.getTime() + DELIVERY_DELAY_MS).toISOString(),
       state: "waiting",
+      allowPdfOnly: true,
       attempts: 0,
       lastError: null,
       nextAttemptAt: null,
@@ -315,7 +316,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-export function buildBrandedMessage(job, brandName = "越大爷") {
+export function buildBrandedMessage(job, brandName = "越大爷", attachments = null) {
+  const hasImage = attachments === null || attachments.some(item => String(item.contentType || "").startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(item.name || ""));
+  const readyText = hasImage ? "您的图片和 PDF 已准备完成" : "您的 PDF 已准备完成";
+  const filesText = hasImage ? "PDF 原件和图片（合成）文件已制作完成，请下载附件。" : "PDF 原件已作为附件提供，请下载。";
+  const usageText = hasImage ? "可直接上传 PDF 原件、合成图片，或自行打印拍照。" : "请下载并保存 PDF 原件。";
+  const summary = hasImage ? "图片和 PDF · 2 个文件" : "PDF · 1 个文件";
   const brand = clean(brandName, 80) || "越大爷";
   const orderNo = clean(job.externalOrderNo, 100);
   const address = (job.addressLines || []).filter(Boolean).join(", ");
@@ -324,18 +330,18 @@ export function buildBrandedMessage(job, brandName = "越大爷") {
     brand,
     "文件生成完成",
     "生成成功",
-    "您的图片和 PDF 已准备完成",
-    "PDF 原件和图片（合成）文件已制作完成，请下载附件。",
+    readyText,
+    filesText,
     "下载后请打开 PDF 查看地址、姓名是否存在乱码等异常。",
     "PDF 原件已核验元数据，请勿修改或编辑 PDF。",
-    "可直接上传 PDF 原件、合成图片，或自行打印拍照。",
+    usageText,
     "",
     "声明：",
     "本文件为翻译件，仅用于语言转换参考。文件内容由客户提供或指定区域来源整理，其真实性及准确性不在本翻译件范围内进行核实。",
     "本翻译件仅反映原文件内容的语言转换结果，请根据实际用途自行确认其适用性。",
     "",
     "邮件附件",
-    "图片和 PDF · 2 个文件",
+    summary,
     "",
     "订单号",
     orderNo,
@@ -346,7 +352,7 @@ export function buildBrandedMessage(job, brandName = "越大爷") {
     "文件已作为附件发送，请下载并妥善保存。若未在收件箱看到邮件，请同时检查垃圾邮件。",
     `本邮件由 ${brand} 自动发送。`,
   ];
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f6f8;font-family:Arial,'Microsoft YaHei',sans-serif;color:#1f2937"><div style="max-width:680px;margin:24px auto;background:white;border-radius:18px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 28px;background:#1f67db;color:white;font-size:24px;font-weight:700">${escapeHtml(brand)}</div><div style="padding:28px"><h1 style="margin:0 0 8px;font-size:26px">文件生成完成</h1><p style="color:#16803c;font-weight:700">生成成功</p><p>您的图片和 PDF 已准备完成。</p><p>PDF 原件和图片（合成）文件已制作完成，请下载附件。</p><p>下载后请打开 PDF 查看地址、姓名是否存在乱码等异常！</p><p>PDF 原件已核验元数据，请勿修改或编辑 PDF。</p><p>【可直接上传 PDF 原件 / 合成图片 / 自行打印拍照】</p><hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"><h2 style="font-size:18px">声明</h2><p style="line-height:1.8;color:#4b5563">本文件为翻译件，仅用于语言转换参考。文件内容由客户提供或指定区域来源整理，其真实性及准确性不在本翻译件范围内进行核实。</p><p style="line-height:1.8;color:#4b5563">本翻译件仅反映原文件内容的语言转换结果，请根据实际用途自行确认其适用性。</p><div style="margin-top:24px;padding:18px;background:#f8fafc;border-radius:12px"><p><strong>邮件附件</strong><br>图片和 PDF · 2 个文件</p><p><strong>订单号</strong><br>${escapeHtml(orderNo)}</p><p><strong>本次使用地址</strong><br>${escapeHtml(address)}</p></div><p style="margin-top:24px">文件已作为附件发送，请下载并妥善保存。若未在收件箱看到邮件，请同时检查垃圾邮件。</p><p style="color:#6b7280;font-size:13px">本邮件由 ${escapeHtml(brand)} 自动发送。</p></div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;background:#f4f6f8;font-family:Arial,'Microsoft YaHei',sans-serif;color:#1f2937"><div style="max-width:680px;margin:24px auto;background:white;border-radius:18px;overflow:hidden;border:1px solid #e5e7eb"><div style="padding:24px 28px;background:#1f67db;color:white;font-size:24px;font-weight:700">${escapeHtml(brand)}</div><div style="padding:28px"><h1 style="margin:0 0 8px;font-size:26px">文件生成完成</h1><p style="color:#16803c;font-weight:700">生成成功</p><p>${escapeHtml(readyText)}。</p><p>${escapeHtml(filesText)}</p><p>下载后请打开 PDF 查看地址、姓名是否存在乱码等异常！</p><p>PDF 原件已核验元数据，请勿修改或编辑 PDF。</p><p>${escapeHtml(usageText)}</p><hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0"><h2 style="font-size:18px">声明</h2><p style="line-height:1.8;color:#4b5563">本文件为翻译件，仅用于语言转换参考。文件内容由客户提供或指定区域来源整理，其真实性及准确性不在本翻译件范围内进行核实。</p><p style="line-height:1.8;color:#4b5563">本翻译件仅反映原文件内容的语言转换结果，请根据实际用途自行确认其适用性。</p><div style="margin-top:24px;padding:18px;background:#f8fafc;border-radius:12px"><p><strong>邮件附件</strong><br>${escapeHtml(summary)}</p><p><strong>订单号</strong><br>${escapeHtml(orderNo)}</p><p><strong>本次使用地址</strong><br>${escapeHtml(address)}</p></div><p style="margin-top:24px">文件已作为附件发送，请下载并妥善保存。若未在收件箱看到邮件，请同时检查垃圾邮件。</p><p style="color:#6b7280;font-size:13px">本邮件由 ${escapeHtml(brand)} 自动发送。</p></div></div></body></html>`;
   return { subject, text: paragraphs.join("\n"), html };
 }
 
@@ -412,9 +418,8 @@ export function buildOutlookPreviewPackage(job, brandName = "越大爷") {
   };
 }
 
-async function listSourceAttachments(accessToken, messageId) {
-  const data = await graphJson(accessToken, "GET", `/me/messages/${encodeURIComponent(messageId)}/attachments?$select=id,name,contentType,size,isInline`);
-  const files = (data.value || []).filter((item) => {
+export function selectSourceAttachments(items, {allowPdfOnly = false} = {}) {
+  const files = items.filter((item) => {
     if (item.isInline || item.size > MAX_ATTACHMENT_BYTES) return false;
     return item.contentType === "application/pdf"
       || String(item.contentType || "").startsWith("image/")
@@ -422,8 +427,14 @@ async function listSourceAttachments(accessToken, messageId) {
   });
   const pdf = files.find((item) => item.contentType === "application/pdf" || /\.pdf$/i.test(item.name || ""));
   const image = files.find((item) => String(item.contentType || "").startsWith("image/") || /\.(png|jpe?g|webp)$/i.test(item.name || ""));
-  if (!pdf || !image) throw new Error("Outlook 原邮件没有同时找到 PDF 和图片附件");
-  const selected = [pdf, image];
+  if (!pdf) throw new Error("Outlook 原邮件未找到可交付的 PDF 附件");
+  if (!image && !allowPdfOnly) throw new Error("Outlook 原邮件没有同时找到 PDF 和图片附件");
+  return image ? [pdf, image] : [pdf];
+}
+
+async function listSourceAttachments(accessToken, messageId, options) {
+  const data = await graphJson(accessToken, "GET", `/me/messages/${encodeURIComponent(messageId)}/attachments?$select=id,name,contentType,size,isInline`);
+  const selected = selectSourceAttachments(data.value || [], options);
   const output = [];
   for (const item of selected) {
     const response = await graphResponse(accessToken, "GET", `/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(item.id)}/$value`);
@@ -474,7 +485,7 @@ async function attachFile(accessToken, draftId, attachment) {
 }
 
 async function sendBrandedMail(accessToken, settings, job, attachments) {
-  const content = buildBrandedMessage(job, settings.brandName);
+  const content = buildBrandedMessage(job, settings.brandName, attachments);
   const draft = await graphJson(accessToken, "POST", "/me/messages", {
     subject: content.subject,
     body: { contentType: "HTML", content: content.html },
@@ -571,7 +582,7 @@ async function pollOutlookDeliveries(settings, onDelivered) {
       if (!job || Date.parse(job.readyAfter) > Date.now()) continue;
       if (job.nextAttemptAt && Date.parse(job.nextAttemptAt) > Date.now()) continue;
       try {
-        const attachments = await listSourceAttachments(accessToken, message.id);
+        const attachments = await listSourceAttachments(accessToken, message.id, {allowPdfOnly: job.allowPdfOnly === true});
         await sendBrandedMail(accessToken, settings, job, attachments);
         job.state = "sent";
         job.sourceMessageId = message.id;

@@ -1,5 +1,5 @@
 {
-  "id": "20261116-human-verification-wait",
+  "id": "20261116-verification-and-mail-delivery",
   "baseSnapshot": "20261116-828a0280",
   "files": [
     {
@@ -31,6 +31,16 @@
       "component": "selfhost/site",
       "relativePath": "dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
       "sha256": "cdcd2da569e6defd4f1d48e3aec3cb9278630a3eb0bbbe113bb8770e76d6e9f2"
+    },
+    {
+      "component": "app",
+      "relativePath": "lib/outlook-relay.mjs",
+      "sha256": "25d54ff8f49b0a9b3416241ea9ebb7539bd49740eef57e7f41f9d91fac97daf7"
+    },
+    {
+      "component": "app",
+      "relativePath": "tests/pdf-only-delivery.test.mjs",
+      "sha256": "ee920693ece1f2531926ab970f4be105790381e994900cb9c2e61ae4dde2a2e8"
     }
   ]
 }
