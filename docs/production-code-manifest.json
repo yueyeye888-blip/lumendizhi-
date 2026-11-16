@@ -24,7 +24,9 @@
     {
       "path": "app/telegram-bot.mjs",
       "source": "SafeTGDemo/telegram-bot.mjs",
-      "sha256": "59fc46ca08ff8018187e2dd8a74c8e86e5798a3826c538037f02dbcf3faf68b6"
+      "sha256": "162f3990f5da5f425568d4b96039b4ddb3f36810bd99c34255e75aeea3d40eaa",
+      "snapshotSha256": "59fc46ca08ff8018187e2dd8a74c8e86e5798a3826c538037f02dbcf3faf68b6",
+      "overlay": "20261116-human-verification-wait"
     },
     {
       "path": "app/sample-message.txt",
@@ -49,7 +51,9 @@
     {
       "path": "app/cdp-fill.mjs",
       "source": "SafeTGDemo/cdp-fill.mjs",
-      "sha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1"
+      "sha256": "ecf02e3e234efca7c45d6b522f18a0000d31871df19d880510b5203aa59ea254",
+      "snapshotSha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1",
+      "overlay": "20261116-human-verification-wait"
     },
     {
       "path": "app/server.mjs",
@@ -614,7 +618,9 @@
     {
       "path": "selfhost/site/dist/server/ssr/_next/static/address-order-status-KUcGNkvB.js",
       "source": "LumenResourceHub/dist/server/ssr/_next/static/address-order-status-KUcGNkvB.js",
-      "sha256": "6ff645fb04a1f820b4f237e4a0e6d02e3371c2854d11d34e0fc1dcfc04452ae0"
+      "sha256": "68b993d06b6ce9b3904e9410b70999e8f815799a4b0141db567b581ff42bcd21",
+      "snapshotSha256": "6ff645fb04a1f820b4f237e4a0e6d02e3371c2854d11d34e0fc1dcfc04452ae0",
+      "overlay": "20261116-human-verification-wait"
     },
     {
       "path": "selfhost/site/dist/server/ssr/_next/static/streamed-icons-C-LGb6Fs.js",
@@ -829,7 +835,9 @@
     {
       "path": "selfhost/site/dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
       "source": "LumenResourceHub/dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
-      "sha256": "abb5c1d5d7e212e80e4a23b9f6a09ff91217176bfe08fbcf3a5dd570180881aa"
+      "sha256": "cdcd2da569e6defd4f1d48e3aec3cb9278630a3eb0bbbe113bb8770e76d6e9f2",
+      "snapshotSha256": "abb5c1d5d7e212e80e4a23b9f6a09ff91217176bfe08fbcf3a5dd570180881aa",
+      "overlay": "20261116-human-verification-wait"
     },
     {
       "path": "selfhost/site/dist/client/_next/static/chunks/app-route-prefetch-policy-C_8SGXLI.js",
@@ -955,6 +963,19 @@
       "path": "selfhost/site/drizzle/meta/0006_snapshot.json",
       "source": "LumenResourceHub/drizzle/meta/0006_snapshot.json",
       "sha256": "cf7238422700723decdd478c13adba0e7dc2c0ece0e4f2229434eb078f9e0d0a"
+    },
+    {
+      "path": "app/lib/verification.mjs",
+      "source": "post-snapshot overlay",
+      "sha256": "0d8eca3045824037f881ac10d3778b0fc8a9e3850d5784ac4f38e5bfa312e6ff",
+      "overlay": "20261116-human-verification-wait"
+    },
+    {
+      "path": "app/tests/verification.test.mjs",
+      "source": "post-snapshot overlay",
+      "sha256": "545e6f7e5a9eca88eab80a9e0c5eb73666543cbacea43972f3d5faaa0ed1b082",
+      "overlay": "20261116-human-verification-wait"
     }
-  ]
+  ],
+  "overlay": "20261116-human-verification-wait"
 }

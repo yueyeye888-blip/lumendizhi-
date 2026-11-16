@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
+import { createVerificationProgress, fillFailureMessage } from "./lib/verification.mjs";
 import { processSiteQueue } from "./lib/site-order-queue.mjs";
 import { normalizePaymentSettings, processPayment } from "./lib/payment.mjs";
 import {
@@ -148,7 +149,7 @@ async function updateOrderStatus(config, requestNo, payload) {
   if (!response.ok) throw new Error(`订单状态回调失败 (${response.status})`);
 }
 
-export async function runFill(config, text) {
+export async function runFill(config, text, onProgress) {
   const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "safe-tg-message-"));
   const messagePath = path.join(temporaryDirectory, "message.txt");
   try {
@@ -170,21 +171,23 @@ export async function runFill(config, text) {
       let output = "";
       let errorOutput = "";
       let settled = false;
+      const progress = createVerificationProgress(onProgress);
       const finish = (callback) => {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
-        callback();
+        progress.drain().then(callback);
       };
       const timeout = setTimeout(() => {
         child.kill();
-        finish(() => reject(new Error("创建支付订单进程超过 240 秒，已终止")));
-      }, 240_000);
+        finish(() => reject(new Error("订单处理超过总等待时限，已停止；请管理员核对外部订单状态后再处理")));
+      }, 840_000);
       child.stdout.on("data", (chunk) => {
         output += chunk;
       });
       child.stderr.on("data", (chunk) => {
-        errorOutput += chunk;
+        if (!settled) progress.write(chunk);
+        errorOutput = (errorOutput + chunk).slice(-16384);
       });
       child.on("error", (error) => finish(() => reject(error)));
       child.on("close", (code) => {
@@ -196,7 +199,7 @@ export async function runFill(config, text) {
               reject(new Error("创建支付订单进程返回了无效结果"));
             }
           }
-          else reject(new Error(`填表进程失败 (${code}): ${errorOutput.trim().slice(0, 500)}`));
+          else reject(new Error(fillFailureMessage(errorOutput, code)));
         });
       });
     });
@@ -244,7 +247,9 @@ async function handleMessage(config, message) {
   });
 
   try {
-    const result = await runFill(config, message.text);
+    const result = await runFill(config, message.text, statusMessage =>
+      updateOrderStatus(config, profile.requestNo, {status: "filling", statusMessage})
+    );
     const payment = result?.payment || {};
     const paymentResult = await processPayment({
       profile,

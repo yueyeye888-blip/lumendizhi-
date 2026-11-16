@@ -57,6 +57,8 @@ New-Item -ItemType Directory $NodeRoot -Force|Out-Null
 Copy-Item "$snapshot\runtime\node22\*" $NodeRoot -Recurse -Force
 $node=Join-Path $NodeRoot 'node.exe'
 Copy-Item "$repo\standalone" (Join-Path $BotRoot 'standalone') -Recurse -Force
+& $node "$repo\tools\backup\apply-overlays.mjs" $repo $BotRoot $SiteRoot $snapshot
+if($LASTEXITCODE -ne 0){throw 'Post-snapshot application overlays failed'}
 & $node "$repo\tools\backup\prepare-restored.mjs" $snapshot $BotRoot $SiteRoot $Origin $Mode
 if($LASTEXITCODE -ne 0){throw 'Portable credentials or restored configuration failed'}
 & "$PSScriptRoot\configure-restored-windows.ps1" -BotRoot $BotRoot -SiteRoot $SiteRoot -NodeRoot $NodeRoot -ChromeRoot $ChromeRoot -Origin $Origin -Mode $Mode

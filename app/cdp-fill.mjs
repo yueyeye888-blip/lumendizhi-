@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { waitForVerification } from "./lib/verification.mjs";
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
 
 const cdpPort = Number(process.env.SAFE_DEMO_CDP_PORT || 9333);
@@ -81,22 +82,13 @@ const ready = await waitUntil(
 );
 if (!ready) throw new Error("addrs.xyz 首页加载超时");
 
-const verificationReady = await waitUntil(async () => {
-  const state = await evaluate(`(() => {
-    const widget = document.querySelector('#order_turnstile');
-    const scope = widget?.parentElement || widget || document;
-    const response = scope.querySelector('input[name="cf-turnstile-response"]');
-    return {
-      widgetPresent: Boolean(widget),
-      widgetVisible: Boolean(widget && widget.getClientRects().length),
-      responseLength: typeof response?.value === 'string' ? response.value.length : 0,
-    };
-  })()`);
-  return state.widgetPresent && state.responseLength > 0 ? state : null;
-}, 180, 500);
-if (!verificationReady) {
-  throw new Error("人机验证尚未完成，请在服务器 Chrome 中完成 Turnstile 后重试");
-}
+const readVerificationState = () => evaluate(`(() => {
+  const widget = document.querySelector('#order_turnstile');
+  const scope = widget?.parentElement || widget || document;
+  const response = scope.querySelector('input[name="cf-turnstile-response"]');
+  return { widgetPresent: Boolean(widget), responseLength: typeof response?.value === 'string' ? response.value.length : 0 };
+})()`);
+const verificationReady = await waitForVerification(readVerificationState);
 await sleep(500);
 
 const payload = JSON.stringify({ ...profile, recipientEmail: addrsDeliveryEmail });
@@ -218,15 +210,8 @@ if (!/BEP20|BNB Smart Chain/i.test(fillResult.paymentMethod || "")) {
 }
 await sleep(700);
 
-const verificationStillReady = await evaluate(`(() => {
-  const widget = document.querySelector('#order_turnstile');
-  const scope = widget?.parentElement || widget || document;
-  const response = scope.querySelector('input[name="cf-turnstile-response"]');
-  return Boolean(response && typeof response.value === 'string' && response.value.length > 0);
-})()`);
-if (!verificationStillReady) {
-  throw new Error("人机验证令牌在提交前失效，请在服务器 Chrome 中完成验证后重试");
-}
+// If verification expires while filling, wait on the same page for the user.
+await waitForVerification(readVerificationState);
 
 const createResult = await evaluate(`(() => {
   const button = document.querySelector('#create_order_button');

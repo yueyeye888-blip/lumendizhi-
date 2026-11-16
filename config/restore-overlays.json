@@ -1,0 +1,36 @@
+{
+  "id": "20261116-human-verification-wait",
+  "baseSnapshot": "20261116-828a0280",
+  "files": [
+    {
+      "component": "app",
+      "relativePath": "cdp-fill.mjs",
+      "sha256": "ecf02e3e234efca7c45d6b522f18a0000d31871df19d880510b5203aa59ea254"
+    },
+    {
+      "component": "app",
+      "relativePath": "telegram-bot.mjs",
+      "sha256": "162f3990f5da5f425568d4b96039b4ddb3f36810bd99c34255e75aeea3d40eaa"
+    },
+    {
+      "component": "app",
+      "relativePath": "lib/verification.mjs",
+      "sha256": "0d8eca3045824037f881ac10d3778b0fc8a9e3850d5784ac4f38e5bfa312e6ff"
+    },
+    {
+      "component": "app",
+      "relativePath": "tests/verification.test.mjs",
+      "sha256": "545e6f7e5a9eca88eab80a9e0c5eb73666543cbacea43972f3d5faaa0ed1b082"
+    },
+    {
+      "component": "selfhost/site",
+      "relativePath": "dist/server/ssr/_next/static/address-order-status-KUcGNkvB.js",
+      "sha256": "68b993d06b6ce9b3904e9410b70999e8f815799a4b0141db567b581ff42bcd21"
+    },
+    {
+      "component": "selfhost/site",
+      "relativePath": "dist/client/_next/static/chunks/address-order-status-BTX-VmrS.js",
+      "sha256": "cdcd2da569e6defd4f1d48e3aec3cb9278630a3eb0bbbe113bb8770e76d6e9f2"
+    }
+  ]
+}
