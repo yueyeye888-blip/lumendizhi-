@@ -1,6 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { waitForVerification } from "./lib/verification.mjs";
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
+import { ensureBrowserReady, createBrowserConnection, browserConnectionError } from "./lib/browser-connection.mjs";
 
 const cdpPort = Number(process.env.SAFE_DEMO_CDP_PORT || 9333);
 const targetUrl = process.env.TARGET_URL || "https://addrs.xyz";
@@ -11,35 +12,26 @@ const profile = parsePersonalDetailsNotice(message);
 const addrsDeliveryEmail = String(process.env.ADDRS_DELIVERY_EMAIL || profile.recipientEmail).trim();
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-const targets = await fetch(`http://127.0.0.1:${cdpPort}/json/list`).then((response) => response.json());
+await ensureBrowserReady(cdpPort);
+async function browserJson(url, options = {}) {
+  try {
+    const response = await fetch(url, {...options, signal: AbortSignal.timeout(5000)});
+    if (!response.ok) throw new Error('Browser HTTP error');
+    return await response.json();
+  } catch { throw browserConnectionError('连接失败（准备页面阶段，尚未提交上游订单）'); }
+}
+const targets = await browserJson(`http://127.0.0.1:${cdpPort}/json/list`);
 let target = targets.find((item) => item.type === "page" && item.url?.startsWith(targetOrigin));
 if (!target) target = targets.find((item) => item.type === "page" && item.webSocketDebuggerUrl);
 if (!target) {
-  target = await fetch(`http://127.0.0.1:${cdpPort}/json/new?${encodeURIComponent(targetUrl)}`, {
+  target = await browserJson(`http://127.0.0.1:${cdpPort}/json/new?${encodeURIComponent(targetUrl)}`, {
     method: "PUT",
-  }).then((response) => response.json());
+  });
 }
 if (!target?.webSocketDebuggerUrl) throw new Error(`未找到可连接的浏览器页面 (${targetUrl})`);
 
 const socket = new WebSocket(target.webSocketDebuggerUrl);
-let sequence = 0;
-const pending = new Map();
-socket.addEventListener("message", (event) => {
-  const response = JSON.parse(event.data);
-  if (!response.id || !pending.has(response.id)) return;
-  const { resolve, reject } = pending.get(response.id);
-  pending.delete(response.id);
-  if (response.error) reject(new Error(response.error.message));
-  else resolve(response.result);
-});
-
-function call(method, params = {}) {
-  const id = ++sequence;
-  return new Promise((resolve, reject) => {
-    pending.set(id, { resolve, reject });
-    socket.send(JSON.stringify({ id, method, params }));
-  });
-}
+const {ready: connectionReady, call} = createBrowserConnection(socket);
 
 async function evaluate(expression) {
   const result = await call("Runtime.evaluate", {
@@ -58,7 +50,8 @@ async function waitUntil(check, attempts, delay = 500) {
     try {
       const value = await check();
       if (value) return value;
-    } catch {
+    } catch (error) {
+      if (error?.code === 'BROWSER_CONNECTION_LOST') throw error;
       // Navigation briefly invalidates the JavaScript execution context.
     }
     await sleep(delay);
@@ -66,10 +59,7 @@ async function waitUntil(check, attempts, delay = 500) {
   return null;
 }
 
-await new Promise((resolve, reject) => {
-  socket.addEventListener("open", resolve, { once: true });
-  socket.addEventListener("error", reject, { once: true });
-});
+await connectionReady;
 await call("Page.enable");
 await call("Runtime.enable");
 

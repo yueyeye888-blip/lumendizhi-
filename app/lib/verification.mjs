@@ -14,7 +14,10 @@ export async function waitForVerification(readState, {
 } = {}) {
   const start = now(); let notified = false;
   while (now() - start < timeoutMs) {
-    let state; try { state = await readState(); } catch { /* Navigation may invalidate the context. */ }
+    let state; try { state = await readState(); } catch (error) {
+      if (error?.code === 'BROWSER_CONNECTION_LOST') throw error;
+      /* Navigation may invalidate the context. */
+    }
     if (state?.widgetPresent && Number(state.responseLength) > 0) {
       if (notified) onEvent('verification_ready');
       return state;

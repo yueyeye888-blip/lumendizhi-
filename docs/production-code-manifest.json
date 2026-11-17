@@ -51,9 +51,9 @@
     {
       "path": "app/cdp-fill.mjs",
       "source": "SafeTGDemo/cdp-fill.mjs",
-      "sha256": "ecf02e3e234efca7c45d6b522f18a0000d31871df19d880510b5203aa59ea254",
+      "sha256": "69f862b86a286ae56a5500da236c5fb7ce86584770503610b9dfcac5baddf9aa",
       "snapshotSha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1",
-      "overlay": "20261116-human-verification-wait"
+      "overlay": "20261117-browser-connection"
     },
     {
       "path": "app/server.mjs",
@@ -969,8 +969,8 @@
     {
       "path": "app/lib/verification.mjs",
       "source": "post-snapshot overlay",
-      "sha256": "0d8eca3045824037f881ac10d3778b0fc8a9e3850d5784ac4f38e5bfa312e6ff",
-      "overlay": "20261116-human-verification-wait"
+      "sha256": "82893a626d223f296d61b5a796bf494ff4d647c9638d3b4e3bf225aea783d047",
+      "overlay": "20261117-browser-connection"
     },
     {
       "path": "app/tests/verification.test.mjs",
@@ -983,7 +983,19 @@
       "source": "post-snapshot overlay",
       "sha256": "ee920693ece1f2531926ab970f4be105790381e994900cb9c2e61ae4dde2a2e8",
       "overlay": "20261116-verification-and-mail-delivery"
+    },
+    {
+      "path": "app/lib/browser-connection.mjs",
+      "source": "post-snapshot overlay",
+      "sha256": "60a7b6cfca86925ae3b7cc17d04d049f68717118f424a77ac507a88c446356f8",
+      "overlay": "20261117-browser-connection"
+    },
+    {
+      "path": "app/tests/browser-connection.test.mjs",
+      "source": "post-snapshot overlay",
+      "sha256": "8d68299dc45e56bc1ec2a4a6a154fade3c7940eed71488ce5c64a6b6b04a31e8",
+      "overlay": "20261117-browser-connection"
     }
   ],
-  "overlay": "20261116-verification-and-mail-delivery"
+  "overlay": "20261117-browser-connection"
 }

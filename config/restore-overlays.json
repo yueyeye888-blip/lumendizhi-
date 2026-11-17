@@ -1,11 +1,11 @@
 {
-  "id": "20261116-verification-and-mail-delivery",
+  "id": "20261117-browser-connection",
   "baseSnapshot": "20261116-828a0280",
   "files": [
     {
       "component": "app",
       "relativePath": "cdp-fill.mjs",
-      "sha256": "ecf02e3e234efca7c45d6b522f18a0000d31871df19d880510b5203aa59ea254"
+      "sha256": "69f862b86a286ae56a5500da236c5fb7ce86584770503610b9dfcac5baddf9aa"
     },
     {
       "component": "app",
@@ -15,7 +15,7 @@
     {
       "component": "app",
       "relativePath": "lib/verification.mjs",
-      "sha256": "0d8eca3045824037f881ac10d3778b0fc8a9e3850d5784ac4f38e5bfa312e6ff"
+      "sha256": "82893a626d223f296d61b5a796bf494ff4d647c9638d3b4e3bf225aea783d047"
     },
     {
       "component": "app",
@@ -41,6 +41,16 @@
       "component": "app",
       "relativePath": "tests/pdf-only-delivery.test.mjs",
       "sha256": "ee920693ece1f2531926ab970f4be105790381e994900cb9c2e61ae4dde2a2e8"
+    },
+    {
+      "component": "app",
+      "relativePath": "lib/browser-connection.mjs",
+      "sha256": "60a7b6cfca86925ae3b7cc17d04d049f68717118f424a77ac507a88c446356f8"
+    },
+    {
+      "component": "app",
+      "relativePath": "tests/browser-connection.test.mjs",
+      "sha256": "8d68299dc45e56bc1ec2a4a6a154fade3c7940eed71488ce5c64a6b6b04a31e8"
     }
   ]
 }
