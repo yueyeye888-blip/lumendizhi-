@@ -1141,11 +1141,15 @@ index 5f37059ea98b67d56f400af2945524224a3e662a..6fe8f203a76bcaff35898421ddf3ea66
  e===`store`&&market.category&&market.category.id!==`esim`&&M.viewer&&(0,K.jsx)(Rt,{marketCategory:market.category.id},market.category.id),
  showEsimMarket&&(0,K.jsx)(xt,{hideHeading:e===`store`,activeGroup:n,setActiveGroup:r,visibleProducts:marketCatalog.items,favorites:l,toggleFavorite:xe,selected:p,toggleSelected:Ce,openPurchase:we,connected:marketCatalog.connected,syncing:marketCatalog.syncing,catalogTotal:marketCatalog.total,stale:marketCatalog.stale,historyTotal:M.history?.total||0,groups:D,onNewGroup:Ee,onEditGroup:e=>{E(e),w(!0)},favoriteOnly:e===`favorites`,showFavorites:()=>t(`favorites`),minDataGb:V,setMinDataGb:ie,maxDuration:H,setMaxDuration:oe,maxPrice:se,setMaxPrice:ce,isAdmin:U,isCustomer,hasMore:marketCatalog.hasMore,loadMore:marketCatalog.loadMore,marketOptions:marketTableEnabled?{scope:e===`favorites`?`favorites`:_e.id,scopeLabel:e===`favorites`?`收藏的套餐`:_e.name,ids:e===`favorites`?l:_e.id===`all`?null:_e.productIds,query:i,favoriteIds:l,toggleFavorite:xe,resetQuery:()=>s(``),openSecurity:()=>t(`security`)}:void 0}),e===`history`&&(0,K.jsx)(Tt,{overview:M,onArchiveUpdated:(ids, archivedAt)=>{
 diff --git a/selfhost/public-auth.mjs b/selfhost/public-auth.mjs
-index 49eef3f9849164d5ba6eec60a337712f2d5c91a0..14bca9b382a27caa7211831babace8c18d6cf0f2 100644
+index 49eef3f9849164d5ba6eec60a337712f2d5c91a0..ad82e185e06d34af735499aa03975a04aa94e74f 100644
 --- a/selfhost/public-auth.mjs
 +++ b/selfhost/public-auth.mjs
-@@ -284,11 +284,11 @@ function page(res, status, title, content) {
-     'content-security-policy':`default-src 'none'; script-src 'self' 'sha256-${scriptHash}'; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
+@@ -281,14 +281,14 @@ const scriptHash = createHash('sha256').update(authScript).digest('base64');
+ function page(res, status, title, content) {
+   res.writeHead(status, {
+     'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'same-origin',
+-    'content-security-policy':`default-src 'none'; script-src 'self' 'sha256-${scriptHash}'; style-src 'self' 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
++    'content-security-policy':`default-src 'none'; script-src 'self' 'sha256-${scriptHash}'; style-src 'self' 'unsafe-inline'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`,
    });
    res.end(withLocale(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 -    <title>${title} · Lumen 资源中心</title><style>${styles}</style></head><body>
@@ -1169,7 +1173,7 @@ index 49eef3f9849164d5ba6eec60a337712f2d5c91a0..14bca9b382a27caa7211831babace8c1
      <form method="post" action="/__host/login" autocomplete="off" data-fresh-login><input type="hidden" name="returnTo" value="${escape(destination)}">
      <div class="fields">${emailInput()}${passwordInput(false,'登录密码')}</div><button class="primary">登录</button></form>
 diff --git a/selfhost/release-manifest.json b/selfhost/release-manifest.json
-index 3d8f2d53e4fbc892900b94456d774fa57327d9b8..c5b531253b9f2dd526e9a9079d350eaa31e18d9f 100644
+index 3d8f2d53e4fbc892900b94456d774fa57327d9b8..e5652b4409bda2695361ca089dc7d7fa16849268 100644
 --- a/selfhost/release-manifest.json
 +++ b/selfhost/release-manifest.json
 @@ -1,6 +1,6 @@
@@ -1298,7 +1302,7 @@ index 3d8f2d53e4fbc892900b94456d774fa57327d9b8..c5b531253b9f2dd526e9a9079d350eaa
      "package.json": "6fd9aff3bb095d46c50c94c62ea12ba5f034df111424e530ec187f7d550a28a8",
      "private-template-archive.mjs": "a2dfa8fdee516af9b3f83a0c69fda1c47fb35b6ac9132308b36754fffe122c1f",
 -    "public-auth.mjs": "c7958030312a2c2b8ac86d079b9d371a75cf706b970826f08a486e0605e69ce8",
-+    "public-auth.mjs": "89988bb427a96cdb2af505ac89f5697e4a983f9553571aee07545d72f70a30e6",
++    "public-auth.mjs": "24739e3ab8fe1faf2c505868b9e9fe75fd217a38d4b9b50920ac670773706863",
      "registration.mjs": "ec8c78242e38c0b0fb248e41a83718c6a3a58b620ab5818d04048e23d5d1422b",
      "resource-operations/account-access.mjs": "c3bd0b8e2e0979f3d4db5efa58737f396841cada16a815b2478a0a33d3b0ea99",
      "resource-operations/accounts.css": "1834553f7f2e15a71d9c7657acb8d5598a33d1472d43ea441e3de7cbcb21765a",
