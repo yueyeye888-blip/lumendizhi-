@@ -43,7 +43,10 @@ tar -xf "$env:TEMP\yorke-template-reference.tar.gz" -C C:\LumenResourceHub
 ```powershell
 node tools/backup/vault.mjs decrypt updates/commerce/yorkeai-template-previews/manifest.json D:\Private\20261116-828a0280-RECOVERY-KEY.json "$env:TEMP\yorke-previews.tar.gz"
 tar -xf "$env:TEMP\yorke-previews.tar.gz" -C C:\LumenResourceHub
+powershell -NoProfile -File .\updates\commerce\yorkeai-template-previews\Restore-PreviewAccess.ps1 -SiteRoot C:\LumenResourceHub
 ```
+
+Windows 在同一卷内移动目录时可能保留临时目录的访问权限。最后一条命令让预览目录和图片继承站点静态目录的权限。
 
 网站启动后，用普通账号进入全球模版库，打开一张样张，再从生成器选中同一模版，两个视图应显示相同的 YorkeAI 图。需要从源码重建前端时，把解包得到的 `dist/client/yorke-previews` 整个目录复制到源码的 `public/` 下再构建。预览图片的逐文件 SHA-256 在商城的 `selfhost/release-manifest.json` 中。
 
