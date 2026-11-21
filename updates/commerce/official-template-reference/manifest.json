@@ -1,0 +1,14 @@
+{
+  "format": "lumen-encrypted-snapshot-v1",
+  "snapshotId": "official-template-reference-20261122",
+  "fileCount": 1,
+  "archiveSha256": "2a70ffe537db434a1fcb1b959e5027e7e2f6669959889dcaf5d1e381a775b8a7",
+  "cipherSha256": "339b7c3d64081dbf682f4d1f0aec1551ffd6113639d0e8a06c1eefc35ba920ff",
+  "chunks": [
+    {
+      "name": "snapshot.part001",
+      "bytes": 100361,
+      "sha256": "339b7c3d64081dbf682f4d1f0aec1551ffd6113639d0e8a06c1eefc35ba920ff"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ Yorke AI 平台右上角提供语言切换，右下角客服弹窗可发送消�
 
 ## 恢复钱包版商城
 
-1. 在 [Lumenziyuan 商城源码](https://github.com/yueyeye888-blip/Lumenziyuan/tree/aa9fa7ecabe3fccf6a020576204f860605fd54f0) 基线 `aa9fa7ecabe3fccf6a020576204f860605fd54f0` 上，依次应用本目录的 `unclaimed-address-refund.patch`、`owner-review-and-support.patch`、`refund-review-list.patch`、`yorke-ai-support-inbox.patch`、`workspace-refunds-and-esim.patch` 和 `template-country-filters.patch`。对每个补丁先执行 `git apply --check <补丁路径>`，再执行 `git apply <补丁路径>`。六个补丁都应用后再发布。
+1. 在 [Lumenziyuan 商城源码](https://github.com/yueyeye888-blip/Lumenziyuan/tree/aa9fa7ecabe3fccf6a020576204f860605fd54f0) 基线 `aa9fa7ecabe3fccf6a020576204f860605fd54f0` 上，依次应用本目录的 `unclaimed-address-refund.patch`、`owner-review-and-support.patch`、`refund-review-list.patch`、`yorke-ai-support-inbox.patch`、`workspace-refunds-and-esim.patch`、`template-country-filters.patch` 和 `inline-template-introductions.patch`。对每个补丁先执行 `git apply --check <补丁路径>`，再执行 `git apply <补丁路径>`。七个补丁都应用后再发布。
 2. 按商城原部署流程发布。复用原 `superAdminEmail` 或首个配置的管理员邮箱作为唯一复核账号。确认站内客服入口可用、普通账号只看到自己的工单、所有者可见退款复核。
 3. Windows 接单任务使用本仓库的 `app/lib/site-order-queue.mjs`，站点对应文件为 `selfhost/site/site-order-queue.mjs`。完整恢复脚本会把这两个更新覆盖到 2026-11-16 的旧快照。旧快照早于商城钱包，安装钱包版还需执行前两步。
 
@@ -20,3 +20,16 @@ Bot 与商城部署在同一台 Windows 服务器时，通知会从接单目录�
 迁移时保留原站数据和已有的 Telegram 配置，确保 `archiveOwnerEmail` 指向原有的模板上传管理员。未配置时，便携版采用 `RESOURCE_ADMIN_EMAILS` 的首个邮箱。常规集成测试在商城源码根目录使用 Node.js 22.22.1 运行 `node --test tests/*.test.mjs selfhost/test/*.test.mjs`。
 
 第六个补丁将地址证明生成器调整为工作台浅色风格，并给全球模版库和生成器加入按国家或地区筛选的标签。地址模板按原目录标注的主要国家或地区归类，原始说明保留在模板资料中。未明确标注的条目可从“未标注”查看。
+
+## 恢复官方模板介绍
+
+第七个补丁将“官方模板介绍”放在预览窗口中，以模板编号读取原站公开资料。商城可以从供应商目录更新介绍。归档 `official-template-reference` 保留了本次发布的 374 条目录记录，支持上游暂时无法访问时显示介绍。迁移已有站点时，复制商城的 `data/supplier-template-introductions.json` 即可。
+
+全新服务器可在网站启动前从本次归档恢复。以下命令在本备份仓库的根目录执行，使用原 2026-11-16 快照的恢复密钥。
+
+```powershell
+node tools/backup/vault.mjs decrypt updates/commerce/official-template-reference/manifest.json D:\Private\20261116-828a0280-RECOVERY-KEY.json "$env:TEMP\yorke-template-reference.tar.gz"
+tar -xf "$env:TEMP\yorke-template-reference.tar.gz" -C C:\LumenResourceHub
+```
+
+也可在商城目录运行 `node sync-template-introductions.mjs`，或传入从官方目录下载的 JSON 文件路径。更新本地文件后，重启商城网站即可加载这份离线资料。
