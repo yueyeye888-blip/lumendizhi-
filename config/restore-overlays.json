@@ -1,5 +1,5 @@
 {
-  "id": "20261117-browser-connection",
+  "id": "20261121-unclaimed-address-refund",
   "baseSnapshot": "20261116-828a0280",
   "files": [
     {
@@ -51,6 +51,16 @@
       "component": "app",
       "relativePath": "tests/browser-connection.test.mjs",
       "sha256": "8d68299dc45e56bc1ec2a4a6a154fade3c7940eed71488ce5c64a6b6b04a31e8"
+    },
+    {
+      "component": "app",
+      "relativePath": "lib/site-order-queue.mjs",
+      "sha256": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4"
+    },
+    {
+      "component": "selfhost/site",
+      "relativePath": "site-order-queue.mjs",
+      "sha256": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4"
     }
   ]
 }

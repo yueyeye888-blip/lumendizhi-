@@ -1,0 +1,212 @@
+diff --git a/selfhost/commerce/address-billing.mjs b/selfhost/commerce/address-billing.mjs
+index d404eb38d5e9f58dcef824e4655d5dd829b7fa0a..647b897918d1b2466af201095cd035842996301d 100644
+--- a/selfhost/commerce/address-billing.mjs
++++ b/selfhost/commerce/address-billing.mjs
+@@ -10,8 +10,10 @@ export const addressPriceRaw = 100000;
+ export const addressPriceFor = user => discountedPrice(addressPriceRaw, user);
+ const orderPath = '/api/personal-details/submit';
+ const requestKey = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
++const claimWindowMs = 3 * 60_000;
++const timeoutFile = 'billing-unclaimed-timeout.json';
+ const reviewAfterMs = 10 * 60_000;
+-const consumed = ['pending.json', 'processing.json', 'done.json', 'completed-payload.json', 'failed-payload.json'];
++const consumed = [timeoutFile, 'pending.json', 'processing.json', 'done.json', 'completed-payload.json', 'failed-payload.json'];
+ 
+ export function createAddressBilling({ db, mf, wallet, config, now = Date.now }) {
+   db.exec(`CREATE TABLE IF NOT EXISTS address_bills(
+@@ -38,7 +40,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+   const job = (bill, file) => path.join(directory, bill.request_no, file);
+   const getOrder = async (bill) =>
+     (await mf.getD1Database('DB'))
+-      .prepare('SELECT status FROM address_orders WHERE request_no=? AND user_id=?')
++      .prepare('SELECT status, external_order_no, payment_amount FROM address_orders WHERE request_no=? AND user_id=?')
+       .bind(bill.request_no, bill.user_id)
+       .first();
+   async function markBilledOrder(bill) {
+@@ -85,7 +87,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+     await mkdir(path.join(directory, bill.request_no), { mode: 0o700 });
+     await writeFile(
+       job(bill, 'billing.tmp'),
+-      JSON.stringify({ requestNo: bill.request_no, text, createdAt: new Date(now()).toISOString() }),
++      JSON.stringify({ requestNo: bill.request_no, text, createdAt: new Date(now()).toISOString(), claimDeadlineMs: bill.created_at + claimWindowMs }),
+       { flag: 'wx', mode: 0o600 }
+     );
+     await rename(job(bill, 'billing.tmp'), job(bill, 'billing-staged.json'));
+@@ -133,6 +135,29 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+     }
+     setQueueState.run('published', bill.id);
+   }
++  async function expireUnclaimed(bill) {
++    // The worker claims by renaming the very same source. Only one rename can succeed.
++    // The marker also lets reconciliation finish a cancellation interrupted by a restart.
++    try {
++      await rename(job(bill, 'pending.json'), job(bill, timeoutFile));
++    } catch (error) {
++      if (error.code !== 'ENOENT') throw error;
++      try {
++        await access(job(bill, timeoutFile));
++      } catch (missing) {
++        if (missing.code === 'ENOENT') return;
++        throw missing;
++      }
++    }
++    const d1 = await mf.getD1Database('DB');
++    const result = await d1.prepare(`UPDATE address_orders
++      SET status='failed', status_message=?, error=?, updated_at=?
++      WHERE request_no=? AND user_id=? AND status='queued'
++        AND external_order_no IS NULL AND payment_amount IS NULL`)
++      .bind('排队超时，订单已取消', '超过 3 分钟无人领取，订单已取消。退款明细请在平台余额中查看。',
++        new Date(now()).toISOString(), bill.request_no, bill.user_id).run();
++    if (result.meta.changes === 1) finish(bill, 'released');
++  }
+   async function settle(bill) {
+     const order = await getOrder(bill);
+     const state = queueIntent.get(bill.id)?.state;
+@@ -144,7 +169,12 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       if (state && state !== 'discarded' && state !== 'published' && directory) await discard(bill);
+     } else if (order?.status === 'queued' && directory) {
+       if (state === 'ready') await publish(bill);
+-      else if (state === 'prepared' && uncertain) await review(bill);
++      if (queueIntent.get(bill.id)?.state === 'published' && now() - bill.created_at > claimWindowMs
++          && !order.external_order_no && !order.payment_amount) {
++        await expireUnclaimed(bill);
++        return getOrder(bill);
++      }
++      if (state === 'prepared' && uncertain) await review(bill);
+     } else if (order && directory && ['prepared', 'ready', 'review'].includes(state)) {
+       // The existing processor has confirmed later progress through its callback.
+       await discard(bill);
+diff --git a/selfhost/release-manifest.json b/selfhost/release-manifest.json
+index 1660cfbf341d50ae91821cda1c9b91c03c11263d..7ef16a1a3e4f847aa5efc187c51d70f3d6a27744 100644
+--- a/selfhost/release-manifest.json
++++ b/selfhost/release-manifest.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": "2026.11.20-commerce.10",
++  "version": "2026.11.21-unclaimed-address-refund",
+   "source": "YorkeAI self-host runtime",
+   "includedReleases": [
+     "mail-delivery",
+@@ -19,7 +19,8 @@
+     "market-categories-partner-labels-and-open-archive-v1.6.0",
+     "public-market-and-bilingual-interface-v1.7.0",
+     "blank-login-fields-v1.7.1",
+-    "batch-esim-archive-and-restore-v1.8.0"
++    "batch-esim-archive-and-restore-v1.8.0",
++    "unclaimed-address-refund"
+   ],
+   "portabilityChanges": [
+     "authorize-site-outlook.mjs",
+@@ -56,7 +57,7 @@
+     "authorize-site-outlook.mjs": "bc6a50bfd887279e0bf2fc70e2618efdf157f1c48d1478a90e29307e26bf9569",
+     "cache-template-previews.mjs": "f40a40711769c5d811641df0175824ddbfc455a65b2e4d4e5af0255bf1886266",
+     "commerce/USDT.md": "dd5ce4ca6da78e72356e3f3ecde0337e8e1f2e8d5c04eb657f242e89ea1f8197",
+-    "commerce/address-billing.mjs": "bd7fe9ac89ce9207f5d013f46e1036ddc008a635c563b5a05ff99a4f23823961",
++    "commerce/address-billing.mjs": "9e50455a8a43f571242eeb693617a3d1d217892faa816aa75e2fff713048f0b8",
+     "commerce/archive-downloads.mjs": "2601899928b256f0dccfedb5d75b6e21c88c3e6db0cf4844a524b6a86a42df98",
+     "commerce/commerce.mjs": "60504e35e4110f5d2a6d512102c4064da13012873037bc22babaf4621df7a7eb",
+     "commerce/deposits.mjs": "48e5220c7ddc6fdded679dcbdc2725496280a1bb048e51385245ccc20146c8ca",
+@@ -241,7 +242,7 @@
+     "sample-mail-attachments.mjs": "70dcc3db130e03e072bf24e9d49dd6d35b2601bfc5b22e0d7adc9ed20f6ae337",
+     "server.mjs": "1bc75f0e23b0d9e65859aed089c38a74276ac48d1949eb4625dd80616f5e490f",
+     "setup.mjs": "cf977ed6d85ee23ade8278f8bc3205605b5487ef47a40da9259592918120b0fa",
+-    "site-order-queue.mjs": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed",
++    "site-order-queue.mjs": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4",
+     "template-library-ui/app.js": "be18e984f6fad0ce3567afe55c39e8e5583c8bd547c3052fa1e40406a58dea77",
+     "template-library-ui/enhance.js": "e3958fb96889161442bb9673f6646d7f8e0083d15d7c9418b2cac58add052776",
+     "template-library-ui/index.html": "1395eadc34fdef4b9a8fc20d8dbb5fddd2dc92754ff246f1b3042fa42180113f",
+@@ -253,6 +254,7 @@
+     "test/purchases-integration.test.mjs": "ae2d7b9a4c8fa18a0b61e91eb0046e8f202e9386e3ac2ec04a95f7356710663c",
+     "test/registration-integration.test.mjs": "fa16fca35122d039209cd3520377bdfe1ffd9289a0332675cc680354d86cb88b",
+     "test/renewal-integration.test.mjs": "f4e3f6f15c07afb9491374488aaa0733fe95022d98bf5c69c2b50189b3aa1d46",
++    "test/unclaimed-refund-integration.test.mjs": "3bdf94521ed937a458b46285ede19aa5a2cbe85aab9b26e3e32d0cfae601621c",
+     "test/wallet-address-integration.test.mjs": "8c4804971c14871bc43f9d8d37cc45a5959f126bc13d6e981021c30d8114cce6",
+     "test/wallet-fixture.mjs": "87dbf8876fd56d40edc83ae5433d7965ab0339a478487d4f32c1045b81fc8b2f",
+     "test/warehouse-integration.test.mjs": "056fa131158d54b018007a65df09a7a520a76dee7b300de2968e7e362dff6a85"
+diff --git a/selfhost/site-order-queue.mjs b/selfhost/site-order-queue.mjs
+index ba903004ad8ce82f85da816a6cf30fa27c076281..d18ab2299fce02b87f6008804ca244ad023f7e77 100644
+--- a/selfhost/site-order-queue.mjs
++++ b/selfhost/site-order-queue.mjs
+@@ -45,9 +45,15 @@ export async function processSiteQueue(directory, handle, onError = () => {}) {
+     const active = path.join(job, 'processing.json');
+     try { await rename(path.join(job, 'pending.json'), active); }
+     catch (error) { if (error.code === 'ENOENT') continue; throw error; }
++    const claimedAt = Date.now();
+     try {
+       const data = JSON.parse(await readFile(active, 'utf8'));
+       if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
++      if (Number.isSafeInteger(data.claimDeadlineMs) && claimedAt > data.claimDeadlineMs) {
++        // The billing service will reconcile this marker. No form or payment has started.
++        await rename(active, path.join(job, 'billing-unclaimed-timeout.json'));
++        continue;
++      }
+       await handle(data);
+       await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
+       await rename(active, path.join(job, 'completed-payload.json'));
+diff --git a/selfhost/test/unclaimed-refund-integration.test.mjs b/selfhost/test/unclaimed-refund-integration.test.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..d24d31a3d390711e745e3fe7aa5fb5fbc9d1a2e0
+--- /dev/null
++++ b/selfhost/test/unclaimed-refund-integration.test.mjs
+@@ -0,0 +1,61 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { DatabaseSync } from 'node:sqlite';
++import { randomUUID } from 'node:crypto';
++import { mkdtemp, readFile, rename, rm } from 'node:fs/promises';
++import { tmpdir } from 'node:os';
++import path from 'node:path';
++import { createWallet } from '../commerce/wallet.mjs';
++import { createAddressBilling } from '../commerce/address-billing.mjs';
++import { processSiteQueue } from '../site-order-queue.mjs';
++
++test('three-minute cancellation arbitrates with the consumer and refunds the original debit once', async t => {
++  const directory = await mkdtemp(path.join(tmpdir(), 'billing-timeout-'));
++  const db = new DatabaseSync(':memory:');
++  t.after(async () => { db.close(); await rm(directory, {recursive:true, force:true}); });
++  db.exec('CREATE TABLE address_orders(request_no TEXT PRIMARY KEY,user_id TEXT,status TEXT,status_message TEXT,error TEXT,updated_at TEXT,external_order_no TEXT,payment_amount TEXT)');
++  const d1 = {
++    prepare(sql) {
++      return {bind(...args) { return {
++        first: async () => db.prepare(sql).get(...args),
++        run: async () => ({meta:db.prepare(sql).run(...args)}),
++      }; }};
++    },
++    batch: async () => {},
++  };
++  const user = {id:'owner',email:'owner@example.invalid',discountBps:8000};
++  const mf = {getD1Database:async()=>d1, dispatchFetch:async (_url, init) => {
++    const requestNo = init.headers.get('x-lumen-billed-address-order');
++    db.prepare("INSERT INTO address_orders(request_no,user_id,status) VALUES(?,?,'queued')").run(requestNo,user.id);
++    return Response.json({requestNo},{status:202});
++  }};
++  let clock = Date.now();
++  const wallet = createWallet(db);
++  wallet.credit({userId:user.id,amountRaw:500000,reference:'seed'});
++  const billing = () => createAddressBilling({db,mf,wallet,now:()=>clock,config:{origin:'https://test.invalid',siteOrderQueueDirectory:directory}});
++  const payload = Buffer.from(JSON.stringify({template:{name:'Fixture'},profile:{fullName:'Fixture',addressLines:['a','b','c'],recipientEmail:'r@example.invalid'}}));
++  const submit = async () => (await billing().submit(user,randomUUID(),payload,80000)).data.requestNo;
++  const expired = await submit(), claimed = await submit(), interrupted = await submit();
++  await rename(path.join(directory,claimed,'pending.json'),path.join(directory,claimed,'processing.json'));
++  const status = no => db.prepare('SELECT status FROM address_orders WHERE request_no=?').get(no).status;
++  const deadline = JSON.parse(await readFile(path.join(directory,expired,'pending.json'),'utf8')).claimDeadlineMs;
++  assert.equal(deadline, clock + 180000);
++  clock = deadline;
++  await billing().sync();
++  assert.equal(status(expired),'queued');
++  // Crash after withdrawing the job, before D1 and wallet settlement.
++  await rename(path.join(directory,interrupted,'pending.json'),path.join(directory,interrupted,'billing-unclaimed-timeout.json'));
++  clock++;
++  await Promise.all([billing().sync(),billing().sync()]);
++  assert.equal(status(expired),'failed'); assert.equal(status(interrupted),'failed');
++  assert.equal(status(claimed),'queued'); assert.equal(wallet.balance(user.id),420000);
++  const credits = () => db.prepare("SELECT delta FROM wallet_entries WHERE reference LIKE 'refund:%'").all().map(x=>x.delta);
++  assert.deepEqual(credits(),[80000,80000]);
++  await processSiteQueue(directory,async()=>assert.fail('expired jobs must not run'));
++  // If the consumer wakes between timer ticks after the deadline, it withdraws the job itself.
++  clock = Date.now()-200000;
++  const late = await submit();
++  await processSiteQueue(directory,async()=>assert.fail('late claim must not run'),async(_,error)=>{throw error});
++  clock = Date.now(); await billing().sync(); await billing().sync();
++  assert.equal(status(late),'failed'); assert.deepEqual(credits(),[80000,80000,80000]);
++});

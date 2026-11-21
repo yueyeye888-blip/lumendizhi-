@@ -45,9 +45,15 @@ export async function processSiteQueue(directory, handle, onError = () => {}) {
     const active = path.join(job, 'processing.json');
     try { await rename(path.join(job, 'pending.json'), active); }
     catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+    const claimedAt = Date.now();
     try {
       const data = JSON.parse(await readFile(active, 'utf8'));
       if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
+      if (Number.isSafeInteger(data.claimDeadlineMs) && claimedAt > data.claimDeadlineMs) {
+        // The billing service will reconcile this marker. No form or payment has started.
+        await rename(active, path.join(job, 'billing-unclaimed-timeout.json'));
+        continue;
+      }
       await handle(data);
       await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
       await rename(active, path.join(job, 'completed-payload.json'));

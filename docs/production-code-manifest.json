@@ -170,7 +170,9 @@
     {
       "path": "app/lib/site-order-queue.mjs",
       "source": "SafeTGDemo/lib/site-order-queue.mjs",
-      "sha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed"
+      "sha256": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4",
+      "snapshotSha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed",
+      "overlay": "20261121-unclaimed-address-refund"
     },
     {
       "path": "selfhost/site/server.mjs",
@@ -200,7 +202,9 @@
     {
       "path": "selfhost/site/site-order-queue.mjs",
       "source": "LumenResourceHub/site-order-queue.mjs",
-      "sha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed"
+      "sha256": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4",
+      "snapshotSha256": "4650ae04a15eb52e0e459555fe373c4cf9ab0225f8e8bd7c6644858a16f605ed",
+      "overlay": "20261121-unclaimed-address-refund"
     },
     {
       "path": "selfhost/site/initialize.mjs",
@@ -997,5 +1001,5 @@
       "overlay": "20261117-browser-connection"
     }
   ],
-  "overlay": "20261117-browser-connection"
+  "overlay": "20261121-unclaimed-address-refund"
 }
