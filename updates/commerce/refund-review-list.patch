@@ -1,0 +1,295 @@
+diff --git a/selfhost/commerce/address-billing.mjs b/selfhost/commerce/address-billing.mjs
+index 604de4120009be4ca3e39026d64563afe24ac5f5..acd84a5072327e447e2914c0a2d9754ec333ae92 100644
+--- a/selfhost/commerce/address-billing.mjs
++++ b/selfhost/commerce/address-billing.mjs
+@@ -377,5 +377,9 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       pending.delete(id);
+     }
+   }
+-  return { sync, submit, decideRefund };
++  async function reviewFailure(requestNo) {
++    const bill = db.prepare('SELECT * FROM address_bills WHERE request_no=?').get(requestNo);
++    if (bill && (await getOrder(bill))?.status === 'failed') requestReview(bill,'处理失败，请核实是否为程序故障');
++  }
++  return { sync, submit, decideRefund, reviewFailure };
+ }
+diff --git a/selfhost/commerce/commerce.mjs b/selfhost/commerce/commerce.mjs
+index 56af565757ea5db691302e87daeb7bf3a3896186..020a9f439fdffd7dd3eb54c24d5c0d22ce2a450c 100644
+--- a/selfhost/commerce/commerce.mjs
++++ b/selfhost/commerce/commerce.mjs
+@@ -233,6 +233,7 @@ export function createCommerce({ wallet, db, mf, config, identities, deposits, r
+   }
+   return {
+     route,
++    reviewFailure: address.reviewFailure,
+     async sync() {
+       await Promise.all([address.sync(), warehouse.recover?.()]);
+     },
+diff --git a/selfhost/commerce/support.mjs b/selfhost/commerce/support.mjs
+index c0e425c6cf9d967e0c032dde40a6efcd20e8573a..6069396e6bffbd049364cd2dd33806a1e91adf7a 100644
+--- a/selfhost/commerce/support.mjs
++++ b/selfhost/commerce/support.mjs
+@@ -4,6 +4,7 @@ import { fault } from './wallet.mjs';
+ import { withLocale } from './locale-html.mjs';
+ 
+ const urlPath = '/__host/support';
++const reviewPath = '/__host/refund-review';
+ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const states = {pending:'待复核', approved:'已批准退款', declined:'未批准退款', delivered:'已交付', open:'待回复', answered:'已回复'};
+ const when = ms => new Date(ms).toLocaleString('zh-CN',{timeZone:'Asia/Singapore',hour12:false});
+@@ -19,12 +20,13 @@ export function createSupport({db,config,readBody,address}) {
+     if ((required&&!v)||v.length>max) throw fault(400,'请检查填写内容与字数限制。');
+     return v;
+   }
+-  async function post(req,user,owner) {
++  async function post(req,user,owner,reviewOnly) {
+     if (![config.origin,...(config.aliasOrigins||[])].includes(req.headers.origin) ||
+         !/^application\/x-www-form-urlencoded(?:;|$)/i.test(req.headers['content-type']||''))
+       throw fault(403,'请从本站客服页面提交。');
+     const f=new URLSearchParams((await readBody(req,24576)).toString());
+     const action=f.get('action');
++    if (reviewOnly && action !== 'decide') throw fault(400,'无效的审核操作。');
+     if (action==='create') {
+       const msg=field(f,'message',2000),ref=field(f,'order',100,false),id=f.get('id');
+       if (!/^[a-f0-9-]{36}$/.test(id||'')) throw fault(400,'请刷新工单表单。');
+@@ -49,32 +51,44 @@ export function createSupport({db,config,readBody,address}) {
+     throw fault(400,'无效操作。');
+   }
+   const hidden=(key,value)=>'<input type="hidden" name="'+key+'" value="'+esc(value)+'">';
+-  const form=(action,id,body)=>'<form method="post" action="'+urlPath+'">'+hidden('action',action)+hidden('id',id)+body+'</form>';
+-  function render(user,owner,url) {
+-    const page=Math.max(0,Math.min(100000,parseInt(url.searchParams.get('page'),10)||0));
+-    const args=owner?[]:[user.id];
+-    const tickets=db.prepare('SELECT * FROM support_tickets '+(owner?'':'WHERE user_id=?')+' ORDER BY (reply IS NULL) DESC,created_at DESC LIMIT 21 OFFSET ?').all(...args,page*20);
++  const form=(action,id,body)=>'<form method="post" action="'+(action==='decide'?reviewPath:urlPath)+'">'+hidden('action',action)+hidden('id',id)+body+'</form>';
++  function reviewList(owner,args,page) {
+     const reviews=db.prepare(`SELECT r.*, b.request_no, COALESCE(p.amount_raw,h.amount) AS amount
+       FROM address_refund_reviews r JOIN address_bills b ON b.id=r.bill_id
+       LEFT JOIN address_prepayments p ON p.bill_id=b.id LEFT JOIN wallet_holds h ON h.reference=b.id
+       ${owner?'':'WHERE b.user_id=?'} ORDER BY (r.decision='pending') DESC,r.opened_at DESC LIMIT 21 OFFSET ?`).all(...args,page*20);
++    const cases=reviews.slice(0,20).map(r=>'<article><strong>'+esc(r.request_no)+' · '+esc(states[r.decision])+'</strong><small>'+esc(when(r.opened_at))+' · '+esc(r.amount/10000)+' U</small><p>'+esc(r.reason)+'</p>'+(r.decision_note?'<p>复核说明 '+esc(r.decision_note)+'</p>':'')+(owner&&r.decision==='pending'?form('decide',r.bill_id,'<label>复核说明<textarea name="note" maxlength="500" required></textarea></label><button name="decision" value="approved">确认程序异常，批准退款</button> <button name="decision" value="declined">不予退款</button>'):'')+'</article>').join('');
++    return {html:cases,more:reviews.length>20};
++  }
++  function pagination(page,more) {
++    return (page?'<a href="?page='+(page-1)+'">上一页</a> ':'')+(more?'<a href="?page='+(page+1)+'">下一页</a>':'');
++  }
++  function render(user,owner,url) {
++    const page=Math.max(0,Math.min(100000,parseInt(url.searchParams.get('page'),10)||0));
++    const args=owner?[]:[user.id];
++    const reviews = reviewList(owner,args,page);
++    if (url.pathname === reviewPath) {
++      return withLocale('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>退款审核 · YorkeAI</title></head><body class="support-page"><main><a href="/">返回平台</a><h1>退款审核</h1>'+(reviews.html||'<p>暂无待审核订单。</p>')+pagination(page,reviews.more)+'</main></body></html>');
++    }
++    const tickets=db.prepare('SELECT * FROM support_tickets '+(owner?'':'WHERE user_id=?')+' ORDER BY (reply IS NULL) DESC,created_at DESC LIMIT 21 OFFSET ?').all(...args,page*20);
+     const makeTicket=form('create',randomUUID(),'<label>订单号（选填）<input name="order" maxlength="100" value="'+esc((url.searchParams.get('order')||'').slice(0,100))+'"></label><label>问题描述<textarea name="message" required maxlength="2000" rows="3"></textarea></label><button>提交工单</button>');
+     const records=tickets.slice(0,20).map(t=>'<article><strong>工单 '+esc(t.id.slice(0,8))+' · '+(t.reply?'已回复':'待回复')+'</strong><small>'+esc(when(t.created_at))+(owner?' · '+esc(t.email):'')+'</small>'+(t.order_ref?'<p>关联订单 '+esc(t.order_ref)+'</p>':'')+'<p>'+esc(t.message)+'</p>'+(t.reply?'<p><b>客服回复</b> '+esc(t.reply)+'</p>':owner?form('reply',t.id,'<label>回复<textarea name="reply" required maxlength="2000"></textarea></label><button>发送回复</button>'):'')+'</article>').join('');
+-    const cases=reviews.slice(0,20).map(r=>'<article><strong>'+esc(r.request_no)+' · '+esc(states[r.decision])+'</strong><small>'+esc(when(r.opened_at))+' · '+esc(r.amount/10000)+' U</small><p>'+esc(r.reason)+'</p>'+(r.decision_note?'<p>复核说明 '+esc(r.decision_note)+'</p>':'')+(owner&&r.decision==='pending'?form('decide',r.bill_id,'<label>复核说明<textarea name="note" maxlength="500" required></textarea></label><button name="decision" value="approved">确认程序异常，批准退款</button> <button name="decision" value="declined">不予退款</button>'):'')+'</article>').join('');
+-    const nav=(page?'<a href="?page='+(page-1)+'">上一页</a> ':'')+(Math.max(reviews.length,tickets.length)>20?'<a href="?page='+(page+1)+'">下一页</a>':'');
+-    return withLocale('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>客服中心 · YorkeAI</title></head><body class="support-page"><main><a href="/">返回平台</a><h1>客服中心</h1><p>Telegram '+tg+'</p><section><h2>提交工单</h2>'+makeTicket+'</section>'+((owner||cases)?'<section><h2>'+(owner?'订单退款复核':'我的订单复核')+'</h2>'+(cases||'<p>暂无待复核订单。</p>')+'</section>':'')+'<section><h2>'+(owner?'客户工单':'我的工单')+'</h2>'+(records||'<p>暂无工单。</p>')+'</section>'+nav+'</main></body></html>');
++    const nav=pagination(page,reviews.more||tickets.length>20);
++    return withLocale('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>客服中心 · YorkeAI</title></head><body class="support-page"><main><a href="/">返回平台</a><h1>客服中心</h1><p>Telegram '+tg+'</p>'+(owner?'<p><a href="'+reviewPath+'">退款审核</a></p>':'')+'<section><h2>提交工单</h2>'+makeTicket+'</section>'+((owner||reviews.html)?'<section><h2>'+(owner?'订单退款复核':'我的订单复核')+'</h2>'+(reviews.html||'<p>暂无待复核订单。</p>')+'</section>':'')+'<section><h2>'+(owner?'客户工单':'我的工单')+'</h2>'+(records||'<p>暂无工单。</p>')+'</section>'+nav+'</main></body></html>');
+   }
+   return async function route(req,res,url,user) {
+-    if(url.pathname!==urlPath)return false;
++    const reviewOnly = url.pathname === reviewPath;
++    if(!reviewOnly && url.pathname!==urlPath)return false;
+     const owner=canManageAccounts(config,user);
+     try{
++      if (reviewOnly && !owner) throw fault(403,'仅平台所有者可以审核退款。');
+       if(req.method==='GET'){
+         const html=render(user,owner,url);
+         res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','content-security-policy':"default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"});
+         res.end(html);
+       }else if(req.method==='POST'){
+-        await post(req,user,owner);
+-        res.writeHead(303,{location:urlPath,'cache-control':'no-store'});res.end();
++        await post(req,user,owner,reviewOnly);
++        res.writeHead(303,{location:reviewOnly?reviewPath:urlPath,'cache-control':'no-store'});res.end();
+       }else{res.writeHead(405,{allow:'GET, POST'});res.end();}
+     }catch(e){
+       if(res.headersSent) throw e;
+diff --git a/selfhost/commerce/ui/bridge.js b/selfhost/commerce/ui/bridge.js
+index 6915f4c9431d28f18a5c1a9bcb32cf3c3406c344..0221983dca57fe0767cfe8998698038ea0aa6a84 100644
+--- a/selfhost/commerce/ui/bridge.js
++++ b/selfhost/commerce/ui/bridge.js
+@@ -105,6 +105,11 @@
+     else walletNav.removeAttribute('aria-current');
+     const legacyWallet = items.find((el) => ['我的钱包', '账户余额'].includes(labelOf(el)));
+     if (legacyWallet) legacyWallet.dataset.lumenLegacyWallet = '';
++    if (snapshot?.canManageAccounts && !nav.querySelector('#lumen-refund-link')) {
++      const refunds = link('退款审核', '/__host/refund-review', trigger.className);
++      refunds.id = 'lumen-refund-link';
++      walletNav.after(refunds);
++    }
+     if (snapshot?.canManageAccounts && !nav.querySelector('#lumen-employees-link')) {
+       const existing = items.find((el) => ['账号与额度', '合伙人与额度'].includes(labelOf(el)));
+       if (existing) {
+diff --git a/selfhost/commerce/ui/store.html b/selfhost/commerce/ui/store.html
+index 8e7cee8ecbd5fd138a2fc5960ab33dc542073801..ad3374fb4a14ec5fb812e217c726e03eb801a59e 100644
+--- a/selfhost/commerce/ui/store.html
++++ b/selfhost/commerce/ui/store.html
+@@ -18,6 +18,7 @@
+           <a href="/__host/wallet" class="wallet-link"
+             ><span class="ui-icon wallet-icon" aria-hidden="true"></span>钱包 / 充值</a
+           >
++          <a href="/__host/refund-review" id="refund-admin-link" hidden>退款审核</a>
+           <a href="/__host/accounts" id="staff-admin-link" hidden>合伙人与额度</a>
+         </nav>
+         <details class="profile-menu">
+diff --git a/selfhost/commerce/ui/store.js b/selfhost/commerce/ui/store.js
+index cfacb15a17d377dfbf284023b4d020e91b54934e..7e0b94972f3d56b45b6352ddf4080c3e19df7cf3 100644
+--- a/selfhost/commerce/ui/store.js
++++ b/selfhost/commerce/ui/store.js
+@@ -235,6 +235,7 @@ document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => $(b.
+ async function loadWallet() {
+   wallet = await api('/api/commerce/wallet');
+   $('account').textContent = wallet.email;
++  $('refund-admin-link').hidden = !wallet.canManageAccounts;
+   $('staff-admin-link').hidden = !wallet.canManageAccounts;
+   $('review-link').hidden = wallet.role !== 'admin';
+   const rechargeAllowed = wallet.role !== 'employee';
+diff --git a/selfhost/release-manifest.json b/selfhost/release-manifest.json
+index b53f7466a5b1550ec2e896f1952a891a579b1081..3d8f2d53e4fbc892900b94456d774fa57327d9b8 100644
+--- a/selfhost/release-manifest.json
++++ b/selfhost/release-manifest.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": "2026.11.21-owner-support",
++  "version": "2026.11.21-refund-review-list",
+   "source": "YorkeAI self-host runtime",
+   "includedReleases": [
+     "mail-delivery",
+@@ -21,7 +21,8 @@
+     "blank-login-fields-v1.7.1",
+     "batch-esim-archive-and-restore-v1.8.0",
+     "unclaimed-address-refund",
+-    "owner-refund-review-and-support"
++    "owner-refund-review-and-support",
++    "refund-review-list"
+   ],
+   "portabilityChanges": [
+     "authorize-site-outlook.mjs",
+@@ -58,14 +59,14 @@
+     "authorize-site-outlook.mjs": "bc6a50bfd887279e0bf2fc70e2618efdf157f1c48d1478a90e29307e26bf9569",
+     "cache-template-previews.mjs": "f40a40711769c5d811641df0175824ddbfc455a65b2e4d4e5af0255bf1886266",
+     "commerce/USDT.md": "dd5ce4ca6da78e72356e3f3ecde0337e8e1f2e8d5c04eb657f242e89ea1f8197",
+-    "commerce/address-billing.mjs": "8dbb9c5e7531585ffffe151ccf53e2ed57286d44e8e12ca17a3914f6ac460f44",
++    "commerce/address-billing.mjs": "99ae50a2e401d2330e3c06c0ebf72c25608127b2f08bca18a42e28f03d012e4e",
+     "commerce/archive-downloads.mjs": "2601899928b256f0dccfedb5d75b6e21c88c3e6db0cf4844a524b6a86a42df98",
+-    "commerce/commerce.mjs": "e55498cb3e2b5d32433d490be7e858243caac981fabd830bcb57d08c48ecbf41",
++    "commerce/commerce.mjs": "58a2103ce8e18a7453a999e09736b3f626d713b56cf0da64531dd21efed386b7",
+     "commerce/deposits.mjs": "48e5220c7ddc6fdded679dcbdc2725496280a1bb048e51385245ccc20146c8ca",
+     "commerce/locale-html.mjs": "2fa93d8b49e436afe13b35e1bf83e4973c3f4fd7a48354147ece4ba1941b69c9",
+     "commerce/pricing.mjs": "07d90dd7fc211bf584f6d762ea4d0440733f878fd7f862c066d7c2f22f704684",
+-    "commerce/support.mjs": "a6770b512825af6b3f0adc818f7d5e23a2c5bc819b7e647ffcfbe46d0e34a569",
+-    "commerce/ui/bridge.js": "3db1a10ac17c39b478e25cd78deb066cbbf281e3a420c89e9f6919225e3469cf",
++    "commerce/support.mjs": "3c045a8f854a8b61956588c54f465715e79a4350c7559ca1bf0650f511a9d8d8",
++    "commerce/ui/bridge.js": "c1e4f91245c98c2d8812bf6a8ffb7b4f51c9186ac15c13d8c6c21c1168ac8897",
+     "commerce/ui/dashboard.css": "becb36a883eb4ac3a4b406a18b61f50c93e53ce6579f373936766636a68ebd6e",
+     "commerce/ui/locale-data.js": "0984c9cbbc23c7e6e58a7eea198286cd9a4bd6eff57c6ef9a064e161601dee28",
+     "commerce/ui/locale-operations.js": "d10b3df1d8cf90c1c07d9e49aa549ee8a465112132b565269e0cc4bbb3faa66a",
+@@ -74,8 +75,8 @@
+     "commerce/ui/market-flags.css": "2b220409ebd5bc1f54b7b9d9136ec33e5d5be763d87465abd66ec4ff2bf8853d",
+     "commerce/ui/market-table.css": "25bc02e02918d9551937d561016b913f1d2692d956119dee9d220c054ac6a458",
+     "commerce/ui/market-table.js": "2211a17b63b39a2af85b5950af0b228e03f2ad2886c3f7a1c554cda7b8260bba",
+-    "commerce/ui/store.html": "0e214a39b2788223cb09cc581d72df538ee9ead38f2d8ababa0071851d4c91e1",
+-    "commerce/ui/store.js": "b2d52b942aed4a84dbaf262262259187931a26fe7051ca3aae620d69357b06db",
++    "commerce/ui/store.html": "8419283dc45bef300d2c2810a0fd08432158a838991a0cd168546107117e61f9",
++    "commerce/ui/store.js": "7733d3cc98bde6d98097fa37e202806360f1083ad47e7766ee57365d30c7369f",
+     "commerce/ui/style.css": "5254e7c1845e7cbaa0ca743672212ce6de53ad11a6dbbff1875c73fe7032480e",
+     "commerce/ui/support-links.js": "4b5f6dc575ce0ba42eb0d706ddea5f947f86cbc9730fd14495185a1504c84431",
+     "commerce/ui/support.css": "45b087a6c351ae182a938ae4b535e12714a87cebb9b1f4dfc3bb9cb644e24026",
+@@ -244,7 +245,7 @@
+     "resource-operations/session-store.mjs": "45c7ff900b9eee37d418e55edab9562683a57196553904f410ad9b07520bc77f",
+     "runtime.mjs": "058ff08d79a697a45f5f08cf991992612501c0b10f1c92a0eb675d43aff88340",
+     "sample-mail-attachments.mjs": "70dcc3db130e03e072bf24e9d49dd6d35b2601bfc5b22e0d7adc9ed20f6ae337",
+-    "server.mjs": "89d4be2f95403e008b7ed070b9b1949584e732e2ecd4c7bf0345b944428d3611",
++    "server.mjs": "9bf460588687410bfb8e9d8541066ef4dfa208bda7b873bd0a0b6aa2d44dc561",
+     "setup.mjs": "cf977ed6d85ee23ade8278f8bc3205605b5487ef47a40da9259592918120b0fa",
+     "site-order-queue.mjs": "3d0ef29ed8265cbedd55971f4020f6a0b20e3836d495b3fde9cee45285d501b5",
+     "template-library-ui/app.js": "be18e984f6fad0ce3567afe55c39e8e5583c8bd547c3052fa1e40406a58dea77",
+@@ -258,8 +259,8 @@
+     "test/purchases-integration.test.mjs": "ae2d7b9a4c8fa18a0b61e91eb0046e8f202e9386e3ac2ec04a95f7356710663c",
+     "test/registration-integration.test.mjs": "fa16fca35122d039209cd3520377bdfe1ffd9289a0332675cc680354d86cb88b",
+     "test/renewal-integration.test.mjs": "f4e3f6f15c07afb9491374488aaa0733fe95022d98bf5c69c2b50189b3aa1d46",
+-    "test/support-integration.test.mjs": "fa4d99263c6df889ce5dfd902c963286ad6c279637dce60283363337800b3938",
+-    "test/unclaimed-refund-integration.test.mjs": "6e2fc1b5c0ca437a1c6745738cda88ff5d39f19536717559ff657e60e5314c05",
++    "test/support-integration.test.mjs": "d3b7c83a67392e6d2a3eb8579837b6e22f8d28cfb3e0d6bcaefc33a39a992f09",
++    "test/unclaimed-refund-integration.test.mjs": "aef23df1cda984cccba176d3eaa5957d4e585b5dfac0392940283745affb89b9",
+     "test/wallet-address-integration.test.mjs": "b9527dce4282af2bf4c2fddb7afd5bc81ae11b7f710cd7ac910e935f357c2701",
+     "test/wallet-fixture.mjs": "87dbf8876fd56d40edc83ae5433d7965ab0339a478487d4f32c1045b81fc8b2f",
+     "test/warehouse-integration.test.mjs": "056fa131158d54b018007a65df09a7a520a76dee7b300de2968e7e362dff6a85"
+diff --git a/selfhost/server.mjs b/selfhost/server.mjs
+index 05a6cff183caf7256f94c995d5afdf8b579bf07b..b7f9bc2dafdd1a808f6bbc87a432c17a9bbbe2bf 100644
+--- a/selfhost/server.mjs
++++ b/selfhost/server.mjs
+@@ -53,7 +53,7 @@ const commerceTimer=setInterval(reconcileCommerce,30_000);
+ const operations = makeResourceOperations({ root, config, mf, identities, readBody: body, outlook, purchases, wallet });
+ function returnPath(value) {
+   const clean = safeReturn(value);
+-  const permitted = /^\/__host\/(?:accounts|wallet|shop|security|support|payment-review|template-archive\/?)(?:\?|$)/;
++  const permitted = /^\/__host\/(?:accounts|wallet|shop|security|support|refund-review|payment-review|template-archive\/?)(?:\?|$)/;
+   if (clean === '/' && typeof value === 'string' && permitted.test(value) && !/[\\\r\n]/.test(value)) {
+     return value;
+   }
+@@ -94,6 +94,12 @@ const server = https.createServer(tls, async (req, res) => {
+       if (!callbackAuthorized(req.headers.authorization, config.bindings?.ADDRESS_ORDER_CALLBACK_TOKEN)) return json(res, 401, { error: '未授权' });
+       const payload = await body(req, 8192);
+       const response = await mf.dispatchFetch(url.href, { method: 'POST', headers: { authorization: req.headers.authorization, 'content-type': 'application/json' }, body: payload });
++      if (response.ok) {
++        try {
++          const update = JSON.parse(payload.toString());
++          if (update.status === 'failed') await commerce.reviewFailure(update.requestNo);
++        } catch { console.warn('Address refund review deferred to reconciliation'); }
++      }
+       res.writeHead(response.status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+       res.end(await response.text());
+       return;
+diff --git a/selfhost/test/support-integration.test.mjs b/selfhost/test/support-integration.test.mjs
+index 5bc29905407f5009a72878265856fb1e25a96034..3e16ff2157aee304195ece35f00d99e8d9c82fd2 100644
+--- a/selfhost/test/support-integration.test.mjs
++++ b/selfhost/test/support-integration.test.mjs
+@@ -13,11 +13,22 @@ test('ticket privacy, durable owner replies, idempotent submission and owner-onl
+   const handler=createSupport({db,config,address,readBody:async req=>Buffer.from(req.body)});
+   const customer={id:'a',email:'a@example.invalid',role:'customer'},other={...customer,id:'b',email:'b@example.invalid'};
+   const boss={id:'boss',role:'employee',email:'boss@example.invalid'},staff={...boss,email:'staff@example.invalid'};
+-  const route=async(user,fields,origin=config.origin)=>{
++  const route=async(user,fields,origin=config.origin,path='/__host/support')=>{
+     const req={method:fields?'POST':'GET',headers:{origin,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields).toString()};
+     const res={writeHead(status,headers){this.status=status;this.headers=headers;},end(body){this.body=body;}};
+-    assert(await handler(req,res,new URL('/__host/support',config.origin),user));return res;
++    assert(await handler(req,res,new URL(path,config.origin),user));return res;
+   };
++  const reviewPath='/__host/refund-review';
++  const reviews=user=>route(user,null,config.origin,reviewPath);
++  db.prepare("INSERT INTO address_bills VALUES(?,?,?,?,?,'spent')").run('fixture','ADDR-REVIEW',customer.id,'test',Date.now());
++  db.prepare('INSERT INTO address_prepayments(bill_id,amount_raw) VALUES(?,?)').run('fixture',100000);
++  db.prepare('INSERT INTO address_refund_reviews(bill_id,reason,opened_at) VALUES(?,?,?)').run('fixture','处理失败',Date.now());
++  assert.equal(db.prepare('SELECT COUNT(*) n FROM support_tickets').get().n,0);
++  const list=await reviews(boss);
++  assert.equal(list.status,200);
++  assert.match(list.body,/ADDR-REVIEW · 待复核/);
++  assert.doesNotMatch(list.body,/提交工单/);
++  for (const person of [customer,staff]) assert.equal((await reviews(person)).status,403);
+   const id=randomUUID(),fields={action:'create',id,order:'ADDR-TEST',message:'<script>test</script> 付费异常'};
+   assert.equal((await route(customer,fields,'https://other.invalid')).status,403);
+   assert.equal((await route(customer,fields)).status,303);
+diff --git a/selfhost/test/unclaimed-refund-integration.test.mjs b/selfhost/test/unclaimed-refund-integration.test.mjs
+index 6a11bd43049603f6cbe2441301af924f5974007e..941143f60d7e393507deed51dca0103f49760c5c 100644
+--- a/selfhost/test/unclaimed-refund-integration.test.mjs
++++ b/selfhost/test/unclaimed-refund-integration.test.mjs
+@@ -89,4 +89,14 @@ test('healthy queues wait and only the owner can settle an unavailable consumer
+   await billing().decideRefund(owner,billId(stopped),'approved','已确认原任务停止且未付款');
+   assert.equal(status(stopped),'failed');
+   assert.equal(wallet.balance(user.id),260000);
++  const failed = await submit();
++  await billing().reviewFailure(failed);
++  assert.equal(db.prepare('SELECT 1 FROM address_refund_reviews WHERE bill_id=?').get(billId(failed)),undefined);
++  db.prepare("UPDATE address_orders SET status='failed' WHERE request_no=?").run(failed);
++  await billing().reviewFailure(failed);
++  assert.equal(decision(failed),'pending');
++  await billing().reviewFailure(failed);
++  assert.equal(db.prepare('SELECT COUNT(*) n FROM address_refund_reviews WHERE bill_id=?').get(billId(failed)).n,1);
++  assert.equal(wallet.balance(user.id),180000);
++
+ });

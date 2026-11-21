@@ -256,7 +256,7 @@ const payment = await evaluate(`(() => {
   const orderText = document.title.match(/订单\\s+([A-Z0-9]+)/i)?.[1]
     || (document.body?.innerText || '').match(/ORDER\\s+([A-Z0-9]+)/i)?.[1]
     || '';
-  const amountText = valueAfter('支付金额');
+  const amountText = valueAfter('本单精确金额') || valueAfter('支付金额');
   const amountMatch = amountText.match(/^([0-9]+(?:\\.[0-9]+)?)\\s*([A-Z0-9]+)?/i);
   return {
     externalOrderNo: orderText,

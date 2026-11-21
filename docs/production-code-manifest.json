@@ -51,9 +51,9 @@
     {
       "path": "app/cdp-fill.mjs",
       "source": "SafeTGDemo/cdp-fill.mjs",
-      "sha256": "69f862b86a286ae56a5500da236c5fb7ce86584770503610b9dfcac5baddf9aa",
+      "sha256": "ac286ec8338317cb8de0dbddae38f188b9ce10b97a61f2a27003281593fe004b",
       "snapshotSha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1",
-      "overlay": "20261117-browser-connection"
+      "overlay": "20261121-checkout-refund-review"
     },
     {
       "path": "app/server.mjs",
@@ -1001,5 +1001,5 @@
       "overlay": "20261117-browser-connection"
     }
   ],
-  "overlay": "20261121-owner-support"
+  "overlay": "20261121-checkout-refund-review"
 }
