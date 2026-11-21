@@ -1,0 +1,873 @@
+diff --git a/selfhost/commerce/address-billing.mjs b/selfhost/commerce/address-billing.mjs
+index 647b897918d1b2466af201095cd035842996301d..604de4120009be4ca3e39026d64563afe24ac5f5 100644
+--- a/selfhost/commerce/address-billing.mjs
++++ b/selfhost/commerce/address-billing.mjs
+@@ -1,8 +1,9 @@
+ import { randomUUID, createHash } from 'node:crypto';
+-import { mkdir, writeFile, rename, rm, access } from 'node:fs/promises';
++import { mkdir, readFile, writeFile, rename, rm, access, stat } from 'node:fs/promises';
+ import path from 'node:path';
+ import { orderNotice } from '../site-order-queue.mjs';
+ import { trustedHeaders } from '../auth.mjs';
++import { canManageAccounts } from '../resource-operations/account-access.mjs';
+ import { fault } from './wallet.mjs';
+ import { discountedPrice } from './pricing.mjs';
+ 
+@@ -27,12 +28,18 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+   if (!db.prepare('PRAGMA table_info(address_prepayments)').all().some(column => column.name === 'amount_raw')) {
+     db.exec(`ALTER TABLE address_prepayments ADD COLUMN amount_raw INTEGER NOT NULL DEFAULT ${addressPriceRaw}`);
+   }
++  db.exec(`CREATE TABLE IF NOT EXISTS address_refund_reviews (
++    bill_id TEXT PRIMARY KEY, reason TEXT NOT NULL, opened_at INTEGER NOT NULL,
++    decision TEXT NOT NULL DEFAULT 'pending', actor TEXT, decision_note TEXT, decided_at INTEGER)`);
++  const refundReview = db.prepare('SELECT * FROM address_refund_reviews WHERE bill_id=?');
+   const pending = new Set();
++  const reviewInProgress = new Map();
+   const read = db.prepare('SELECT * FROM address_bills WHERE id=?');
+   const queueIntent = db.prepare('SELECT state FROM address_queue_intents WHERE bill_id=?');
+   const setQueueState = db.prepare('UPDATE address_queue_intents SET state=? WHERE bill_id=?');
+   const prepayment = db.prepare('SELECT settled,amount_raw FROM address_prepayments WHERE bill_id=?');
+   function paymentStatus(id) {
++    if (refundReview.get(id)?.decision === 'pending') return 'review';
+     const state = read.get(id).state;
+     return state === 'released' ? 'refunded' : state === 'spent' ? 'paid' : 'reserved';
+   }
+@@ -40,7 +47,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+   const job = (bill, file) => path.join(directory, bill.request_no, file);
+   const getOrder = async (bill) =>
+     (await mf.getD1Database('DB'))
+-      .prepare('SELECT status, external_order_no, payment_amount FROM address_orders WHERE request_no=? AND user_id=?')
++      .prepare('SELECT status, updated_at, external_order_no, payment_amount FROM address_orders WHERE request_no=? AND user_id=?')
+       .bind(bill.request_no, bill.user_id)
+       .first();
+   async function markBilledOrder(bill) {
+@@ -87,7 +94,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+     await mkdir(path.join(directory, bill.request_no), { mode: 0o700 });
+     await writeFile(
+       job(bill, 'billing.tmp'),
+-      JSON.stringify({ requestNo: bill.request_no, text, createdAt: new Date(now()).toISOString(), claimDeadlineMs: bill.created_at + claimWindowMs }),
++      JSON.stringify({ requestNo: bill.request_no, text, createdAt: new Date(now()).toISOString() }),
+       { flag: 'wx', mode: 0o600 }
+     );
+     await rename(job(bill, 'billing.tmp'), job(bill, 'billing-staged.json'));
+@@ -154,27 +161,127 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       SET status='failed', status_message=?, error=?, updated_at=?
+       WHERE request_no=? AND user_id=? AND status='queued'
+         AND external_order_no IS NULL AND payment_amount IS NULL`)
+-      .bind('排队超时，订单已取消', '超过 3 分钟无人领取，订单已取消。退款明细请在平台余额中查看。',
++      .bind('接单程序无响应，等待人工复核', '接单程序无响应，订单已停止。退款结果可在客服中心查看。',
+         new Date(now()).toISOString(), bill.request_no, bill.user_id).run();
+-    if (result.meta.changes === 1) finish(bill, 'released');
++    if (result.meta.changes === 1) requestReview(bill, '接单程序超过 3 分钟无响应，原订单已撤出队列');
++  }
++  function requestReview(bill, reason) {
++    const prepaid = prepayment.get(bill.id);
++    if (prepaid ? prepaid.settled : read.get(bill.id)?.state !== 'held') return;
++    db.prepare('INSERT OR IGNORE INTO address_refund_reviews(bill_id,reason,opened_at) VALUES(?,?,?)')
++      .run(bill.id,reason,now());
++  }
++  async function workerUnavailable() {
++    try { return now() - (await stat(path.join(directory,'.consumer-heartbeat'))).mtimeMs > claimWindowMs; }
++    catch (error) { if (error.code === 'ENOENT') return true; throw error; }
++  }
++  async function decideRefund(user, id, decision, note) {
++    if (!canManageAccounts(config,user)) throw fault(403,'仅平台所有者可以复核退款。');
++    if (!['approved','declined'].includes(decision) || !note?.trim() || note.length > 500)
++      throw fault(400,'请选择复核结果并填写说明。');
++    const bill = read.get(id);
++    const review = refundReview.get(id);
++    if (!bill || !review) throw fault(404,'未找到复核记录。');
++    if (review.decision === decision) return;
++    if (review.decision !== 'pending') throw fault(409,'该记录已经复核。');
++    const current = reviewInProgress.get(id);
++    if (current) {
++      if (current.decision !== decision) throw fault(409,'该记录正在复核。');
++      return current.result;
++    }
++    const result = completeReview(user, bill, decision, note);
++    reviewInProgress.set(id, {decision, result});
++    try { await result; } finally { reviewInProgress.delete(id); }
++  }
++  async function stopStalledOrder(bill) {
++    const order = await getOrder(bill);
++    if (directory) {
++      for (const name of ['pending.json','processing.json','billing-staged.json']) {
++        try { await access(job(bill,name)); }
++        catch (error) { if (error.code === 'ENOENT') continue; throw error; }
++        throw fault(409,'原订单仍可执行，请先核对处理队列。');
++      }
++    }
++    if (order && order.status !== 'failed') {
++      const rawTime = order.updated_at || '';
++      const last = Date.parse(rawTime.includes('T') ? rawTime : rawTime.replace(' ','T') + 'Z');
++      if (order.status === 'delivered' || order.external_order_no || order.payment_amount ||
++          !Number.isFinite(last) || now() - last <= reviewAfterMs || !directory) {
++        throw fault(409,'订单仍在处理、已生成上游单号或已交付。请先核实上游并结束异常任务。');
++      }
++      // Financial and delivery records can precede a lost site callback.
++      const data = path.dirname(directory);
++      const load = async (name) => {
++        try { return JSON.parse(await readFile(path.join(data,name),'utf8')); }
++        catch(error) { if(error.code==='ENOENT') return {}; throw error; }
++      };
++      const ledger = await load('payment-ledger.json');
++      const delivery = await load('outlook-delivery-jobs.json');
++      if (Object.values(ledger.entries || {}).some(x=>x.requestNo===bill.request_no)
++          || (delivery.jobs || []).some(x=>x.requestNo===bill.request_no))
++        throw fault(409,'已有上游付款或交付记录，请先核实处理结果。');
++      const d1 = await mf.getD1Database('DB');
++      const result = await d1.prepare(`UPDATE address_orders SET status='failed',status_message=?,error=?,updated_at=?
++        WHERE request_no=? AND user_id=? AND status=? AND updated_at=? AND external_order_no IS NULL AND payment_amount IS NULL`)
++        .bind('程序异常，订单已停止','请在客服中心查看复核结果。',new Date(now()).toISOString(),
++          bill.request_no,bill.user_id,order.status,order.updated_at).run();
++      if (!result.meta.changes) throw fault(409,'订单已有新进展，请刷新后核对。');
++    }
++  }
++  async function completeReview(user, bill, decision, note) {
++    const id = bill.id;
++    if (decision === 'approved') await stopStalledOrder(bill);
++    wallet.atomic(() => {
++      const current = refundReview.get(id);
++      if (current.decision === decision) return;
++      if (current.decision !== 'pending') throw fault(409,'该记录已经复核。');
++      finish(bill, decision === 'approved' ? 'released' : 'spent');
++      db.prepare('UPDATE address_refund_reviews SET decision=?, actor=?, decision_note=?, decided_at=? WHERE bill_id=?')
++        .run(decision,user.id,note.trim(),now(),id);
++    });
+   }
+   async function settle(bill) {
+     const order = await getOrder(bill);
+     const state = queueIntent.get(bill.id)?.state;
+     const uncertain = !pending.has(bill.id) && now() - bill.created_at > reviewAfterMs;
++    // An interrupted acknowledgement after claim also merits investigation.
++    // Recording a case never credits funds or replays the job.
++    if (order && !['failed','delivered'].includes(order.status)) {
++      const changed = order.updated_at?.includes('T') ? Date.parse(order.updated_at)
++        : Date.parse((order.updated_at || '').replace(' ','T') + 'Z');
++      if (now() - (Number.isFinite(changed) ? changed : bill.created_at) > reviewAfterMs) {
++        if (order.status !== 'queued') requestReview(bill,'处理回执超过 10 分钟未更新，请核查执行和交付记录');
++        else if (directory) {
++          try { await access(job(bill,'processing.json')); requestReview(bill,'已领取订单长时间没有开始处理的回执'); }
++          catch (error) { if (error.code !== 'ENOENT') throw error; }
++        }
++      }
++    }
+     const terminal = order?.status === 'failed' || order?.status === 'delivered';
+     if (terminal || (!order && uncertain)) {
+       // Settling the balance is independent of cleanup permission/disk failures.
+-      finish(bill, order?.status === 'delivered' ? 'spent' : 'released');
++      if (order?.status === 'delivered') {
++        wallet.atomic(() => {
++          finish(bill,'spent');
++          db.prepare("UPDATE address_refund_reviews SET decision='delivered',decided_at=? WHERE bill_id=? AND decision='pending'").run(now(),bill.id);
++        });
++      } else requestReview(bill,order?.status === 'failed' ? '处理失败，请核实是否为程序故障' : '提交结果长时间无法确认');
+       if (state && state !== 'discarded' && state !== 'published' && directory) await discard(bill);
+     } else if (order?.status === 'queued' && directory) {
+       if (state === 'ready') await publish(bill);
+       if (queueIntent.get(bill.id)?.state === 'published' && now() - bill.created_at > claimWindowMs
+-          && !order.external_order_no && !order.payment_amount) {
++          && !order.external_order_no && !order.payment_amount && await workerUnavailable()) {
+         await expireUnclaimed(bill);
+         return getOrder(bill);
+       }
+-      if (state === 'prepared' && uncertain) await review(bill);
++      if (['prepared','review'].includes(state) && uncertain) {
++        await review(bill);
++        const d1 = await mf.getD1Database('DB');
++        await d1.prepare("UPDATE address_orders SET status='failed', status_message=?, updated_at=? WHERE request_no=? AND user_id=? AND status='queued' AND external_order_no IS NULL")
++          .bind('提交未确认，等待人工复核',new Date(now()).toISOString(),bill.request_no,bill.user_id).run();
++        await discard(bill);
++        requestReview(bill,'上游提交未确认');
++      }
+     } else if (order && directory && ['prepared', 'ready', 'review'].includes(state)) {
+       // The existing processor has confirmed later progress through its callback.
+       await discard(bill);
+@@ -206,6 +313,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       if (prior.user_id !== user.id || prior.payload_hash !== digest) throw fault(409, '订单编号与本次提交不符。');
+       const order = await settle(prior);
+       if (!order && read.get(id).state === 'released') throw fault(409, '上次请求未成立，金额已退回可用余额，请重新提交。');
++      if (!order && refundReview.get(id)) throw fault(409,'订单提交异常，复核结果请在客服中心查看。');
+       if (!order) throw fault(503, '正在核对上次提交，请稍后再查询。');
+       return { status: 202, data: { ok: true, requestNo: prior.request_no, paymentStatus:paymentStatus(id), paidAmountRaw:prepayment.get(id)?.amount_raw ?? addressPriceRaw } };
+     }
+@@ -232,7 +340,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+         try {
+           await stage(bill, payload, user.email);
+         } catch (error) {
+-          finish(bill, 'released');
++          requestReview(bill,'订单资料入队失败');
+           // Never alter another job on the very unlikely order-number collision.
+           if (error.code !== 'EEXIST') await discard(bill);
+           else setQueueState.run('discarded', id);
+@@ -242,7 +350,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       try {
+         await markBilledOrder(bill);
+       } catch (error) {
+-        finish(bill, 'released');
++        requestReview(bill,'订单提交失败');
+         if (directory) await discard(bill);
+         throw error;
+       }
+@@ -257,7 +365,7 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       });
+       const result = await reply.json();
+       if (reply.status >= 400 && reply.status < 500) {
+-        finish(bill, 'released');
++        requestReview(bill,'订单提交失败');
+         if (directory) await discard(bill);
+         return { status: reply.status, data: result };
+       }
+@@ -269,5 +377,5 @@ export function createAddressBilling({ db, mf, wallet, config, now = Date.now })
+       pending.delete(id);
+     }
+   }
+-  return { sync, submit };
++  return { sync, submit, decideRefund };
+ }
+diff --git a/selfhost/commerce/commerce.mjs b/selfhost/commerce/commerce.mjs
+index d4bf75ceb07d5bf51a1fb789e139a2281863afa3..56af565757ea5db691302e87daeb7bf3a3896186 100644
+--- a/selfhost/commerce/commerce.mjs
++++ b/selfhost/commerce/commerce.mjs
+@@ -1,3 +1,4 @@
++import { createSupport } from './support.mjs';
+ import { withLocale } from './locale-html.mjs';
+ import { canManageAccounts } from '../resource-operations/account-access.mjs';
+ import { readFileSync, existsSync } from 'node:fs';
+@@ -36,6 +37,7 @@ export function createCommerce({ wallet, db, mf, config, identities, deposits, r
+   const admin = (u) => u.role !== 'customer' && admins.has(u.email.toLowerCase());
+   const origins = new Set([config.origin, ...(config.aliasOrigins || [])]);
+   const address = createAddressBilling({ db, mf, wallet, config });
++  const support = createSupport({db,config,readBody,address});
+   const warehouse = createWarehouse({
+     wallet,
+     db,
+@@ -46,6 +48,7 @@ export function createCommerce({ wallet, db, mf, config, identities, deposits, r
+   });
+   async function route(req, res, url, user) {
+     const path = url.pathname;
++    if (await support(req,res,url,user)) return true;
+     if (await warehouse.route(req, res, url, user)) return true;
+     if (path === '/__host/payment-review' && !admin(user)) return json(res, 403, { error: '仅管理员可核对转账。' });
+     const asset = {
+diff --git a/selfhost/commerce/locale-html.mjs b/selfhost/commerce/locale-html.mjs
+index 9228108ccf3260cf66b9344548547ca82e0aa60d..ed59c9d3749f6c102bf500e96cd5f9a175846cdb 100644
+--- a/selfhost/commerce/locale-html.mjs
++++ b/selfhost/commerce/locale-html.mjs
+@@ -5,6 +5,8 @@ const assets = new Map([
+   ['locale-operations.js', 'application/javascript'],
+   ['locale.js', 'application/javascript'],
+   ['locale.css', 'text/css'],
++  ['support-links.js', 'application/javascript'],
++  ['support.css', 'text/css'],
+ ]);
+ const browserDirectory = new URL('./ui/', import.meta.url);
+ const localeHead = [...assets.keys()].map(file => file.endsWith('.css')
+diff --git a/selfhost/commerce/support.mjs b/selfhost/commerce/support.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..c0e425c6cf9d967e0c032dde40a6efcd20e8573a
+--- /dev/null
++++ b/selfhost/commerce/support.mjs
+@@ -0,0 +1,87 @@
++import { randomUUID } from 'node:crypto';
++import { canManageAccounts } from '../resource-operations/account-access.mjs';
++import { fault } from './wallet.mjs';
++import { withLocale } from './locale-html.mjs';
++
++const urlPath = '/__host/support';
++const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
++const states = {pending:'待复核', approved:'已批准退款', declined:'未批准退款', delivered:'已交付', open:'待回复', answered:'已回复'};
++const when = ms => new Date(ms).toLocaleString('zh-CN',{timeZone:'Asia/Singapore',hour12:false});
++const tg = '<a href="https://t.me/YorkeYue" target="_blank" rel="noopener noreferrer">@YorkeYue</a>';
++
++export function createSupport({db,config,readBody,address}) {
++  db.exec(`CREATE TABLE IF NOT EXISTS support_tickets (
++    id TEXT PRIMARY KEY, user_id TEXT NOT NULL, email TEXT NOT NULL, order_ref TEXT NOT NULL,
++    message TEXT NOT NULL, created_at INTEGER NOT NULL, reply TEXT, replied_at INTEGER, replied_by TEXT);
++    CREATE INDEX IF NOT EXISTS support_tickets_user ON support_tickets(user_id,created_at);`);
++  function field(f,key,max,required=true) {
++    const v=(f.get(key)||'').trim();
++    if ((required&&!v)||v.length>max) throw fault(400,'请检查填写内容与字数限制。');
++    return v;
++  }
++  async function post(req,user,owner) {
++    if (![config.origin,...(config.aliasOrigins||[])].includes(req.headers.origin) ||
++        !/^application\/x-www-form-urlencoded(?:;|$)/i.test(req.headers['content-type']||''))
++      throw fault(403,'请从本站客服页面提交。');
++    const f=new URLSearchParams((await readBody(req,24576)).toString());
++    const action=f.get('action');
++    if (action==='create') {
++      const msg=field(f,'message',2000),ref=field(f,'order',100,false),id=f.get('id');
++      if (!/^[a-f0-9-]{36}$/.test(id||'')) throw fault(400,'请刷新工单表单。');
++      const old=db.prepare('SELECT user_id,message,order_ref FROM support_tickets WHERE id=?').get(id);
++      if (old) {
++        if (old.user_id!==user.id||old.message!==msg||old.order_ref!==ref) throw fault(409,'提交编号已使用，请刷新重试。');
++        return;
++      }
++      if(db.prepare('SELECT COUNT(*) AS n FROM support_tickets WHERE user_id=? AND created_at>?').get(user.id,Date.now()-60000).n>=5) throw fault(429,'工单已收到，请稍后再提交。');
++      db.prepare('INSERT INTO support_tickets(id,user_id,email,order_ref,message,created_at) VALUES(?,?,?,?,?,?)')
++        .run(id,user.id,user.email,ref,msg,Date.now());
++      return;
++    }
++    if (!owner) throw fault(403,'仅平台所有者可以处理工单和复核退款。');
++    if(action==='reply'){
++      const result=db.prepare('UPDATE support_tickets SET reply=?,replied_by=?,replied_at=? WHERE id=? AND reply IS NULL')
++        .run(field(f,'reply',2000),user.id,Date.now(),field(f,'id',60));
++      if(!result.changes)throw fault(409,'工单已回复或不存在。');
++      return;
++    }
++    if(action==='decide')return address.decideRefund(user,field(f,'id',100),field(f,'decision',12),field(f,'note',500));
++    throw fault(400,'无效操作。');
++  }
++  const hidden=(key,value)=>'<input type="hidden" name="'+key+'" value="'+esc(value)+'">';
++  const form=(action,id,body)=>'<form method="post" action="'+urlPath+'">'+hidden('action',action)+hidden('id',id)+body+'</form>';
++  function render(user,owner,url) {
++    const page=Math.max(0,Math.min(100000,parseInt(url.searchParams.get('page'),10)||0));
++    const args=owner?[]:[user.id];
++    const tickets=db.prepare('SELECT * FROM support_tickets '+(owner?'':'WHERE user_id=?')+' ORDER BY (reply IS NULL) DESC,created_at DESC LIMIT 21 OFFSET ?').all(...args,page*20);
++    const reviews=db.prepare(`SELECT r.*, b.request_no, COALESCE(p.amount_raw,h.amount) AS amount
++      FROM address_refund_reviews r JOIN address_bills b ON b.id=r.bill_id
++      LEFT JOIN address_prepayments p ON p.bill_id=b.id LEFT JOIN wallet_holds h ON h.reference=b.id
++      ${owner?'':'WHERE b.user_id=?'} ORDER BY (r.decision='pending') DESC,r.opened_at DESC LIMIT 21 OFFSET ?`).all(...args,page*20);
++    const makeTicket=form('create',randomUUID(),'<label>订单号（选填）<input name="order" maxlength="100" value="'+esc((url.searchParams.get('order')||'').slice(0,100))+'"></label><label>问题描述<textarea name="message" required maxlength="2000" rows="3"></textarea></label><button>提交工单</button>');
++    const records=tickets.slice(0,20).map(t=>'<article><strong>工单 '+esc(t.id.slice(0,8))+' · '+(t.reply?'已回复':'待回复')+'</strong><small>'+esc(when(t.created_at))+(owner?' · '+esc(t.email):'')+'</small>'+(t.order_ref?'<p>关联订单 '+esc(t.order_ref)+'</p>':'')+'<p>'+esc(t.message)+'</p>'+(t.reply?'<p><b>客服回复</b> '+esc(t.reply)+'</p>':owner?form('reply',t.id,'<label>回复<textarea name="reply" required maxlength="2000"></textarea></label><button>发送回复</button>'):'')+'</article>').join('');
++    const cases=reviews.slice(0,20).map(r=>'<article><strong>'+esc(r.request_no)+' · '+esc(states[r.decision])+'</strong><small>'+esc(when(r.opened_at))+' · '+esc(r.amount/10000)+' U</small><p>'+esc(r.reason)+'</p>'+(r.decision_note?'<p>复核说明 '+esc(r.decision_note)+'</p>':'')+(owner&&r.decision==='pending'?form('decide',r.bill_id,'<label>复核说明<textarea name="note" maxlength="500" required></textarea></label><button name="decision" value="approved">确认程序异常，批准退款</button> <button name="decision" value="declined">不予退款</button>'):'')+'</article>').join('');
++    const nav=(page?'<a href="?page='+(page-1)+'">上一页</a> ':'')+(Math.max(reviews.length,tickets.length)>20?'<a href="?page='+(page+1)+'">下一页</a>':'');
++    return withLocale('<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>客服中心 · YorkeAI</title></head><body class="support-page"><main><a href="/">返回平台</a><h1>客服中心</h1><p>Telegram '+tg+'</p><section><h2>提交工单</h2>'+makeTicket+'</section>'+((owner||cases)?'<section><h2>'+(owner?'订单退款复核':'我的订单复核')+'</h2>'+(cases||'<p>暂无待复核订单。</p>')+'</section>':'')+'<section><h2>'+(owner?'客户工单':'我的工单')+'</h2>'+(records||'<p>暂无工单。</p>')+'</section>'+nav+'</main></body></html>');
++  }
++  return async function route(req,res,url,user) {
++    if(url.pathname!==urlPath)return false;
++    const owner=canManageAccounts(config,user);
++    try{
++      if(req.method==='GET'){
++        const html=render(user,owner,url);
++        res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'private, no-store','content-security-policy':"default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"});
++        res.end(html);
++      }else if(req.method==='POST'){
++        await post(req,user,owner);
++        res.writeHead(303,{location:urlPath,'cache-control':'no-store'});res.end();
++      }else{res.writeHead(405,{allow:'GET, POST'});res.end();}
++    }catch(e){
++      if(res.headersSent) throw e;
++      const status=e.status||503;
++      res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
++      res.end('<meta charset="utf-8"><p>'+esc(e.status?e.message:'服务暂时不可用，请稍后查询。')+'</p><a href="'+urlPath+'">返回客服中心</a>');
++    }
++    return true;
++  };
++}
+diff --git a/selfhost/commerce/ui/bridge.js b/selfhost/commerce/ui/bridge.js
+index 64bd4178cff3f2f5c3ede844cfb79edf00fe42e1..6915f4c9431d28f18a5c1a9bcb32cf3c3406c344 100644
+--- a/selfhost/commerce/ui/bridge.js
++++ b/selfhost/commerce/ui/bridge.js
+@@ -277,7 +277,7 @@
+           </div>
+           <div class="lumen-payment-body">
+             <div class="lumen-payment-total"><span>应付金额</span><strong>${price} <small>U</small></strong></div>
+-            <p>付款后开始处理。订单失败时，费用会退回账户余额。</p>
++            <p>付款后进入队列。程序异常时，由平台人工复核退款。</p>
+             <label>六位支付密码<input type="password" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required autocomplete="off"></label>
+             <div class="lumen-payment-links"><a href="/?section=wallet">查看余额</a><a href="/__host/security">设置支付密码</a></div>
+           </div>
+diff --git a/selfhost/commerce/ui/locale-data.js b/selfhost/commerce/ui/locale-data.js
+index 9191c52252e3952ec06bd9634905014ac6d01989..1bd7df045a5d113e88b6860c8c4718825f8d1b50 100644
+--- a/selfhost/commerce/ui/locale-data.js
++++ b/selfhost/commerce/ui/locale-data.js
+@@ -529,9 +529,7 @@ Lumen 资源申购中心|Lumen Resource Center
+ 标准价 10 U|Standard Price 10 U
+ U / 份|U / document
+ U / 次|U / download
+-处理失败后，费用退回账户余额。|If processing fails, the fee is returned to your wallet.
+-付款后开始处理。订单失败时，费用会退回账户余额。|Processing starts after payment. If the order fails, the fee is returned to your wallet.
+-付款后开始生成。订单处理失败时，支付金额会退回账户余额。|Generation starts after payment. If the order fails, the fee is returned to your wallet.
++付款后进入队列。程序异常时，由平台人工复核退款。|Paid orders enter the queue. The platform owner reviews refunds for processing faults.
+ 按所选模板生成，完成后发送到你填写的邮箱。|Generate from the chosen template and send it to the supplied email.
+ 自动生成地址|Generate Address Automatically
+ 按所选国家随机生成三行英文地址，生成后仍可手动修改。|Generate three English address lines for the selected country. You can edit them afterward.
+diff --git a/selfhost/commerce/ui/store.html b/selfhost/commerce/ui/store.html
+index 0cce160b7eac0ba81df41e63e7106bd940ba6820..8e7cee8ecbd5fd138a2fc5960ab33dc542073801 100644
+--- a/selfhost/commerce/ui/store.html
++++ b/selfhost/commerce/ui/store.html
+@@ -198,7 +198,7 @@
+                   required
+               /></label>
+               <div class="address-payment">
+-                <p class="hint">付款后开始生成。订单处理失败时，支付金额会退回账户余额。</p>
++                <p class="hint">付款后进入队列。程序异常时，由平台人工复核退款。</p>
+                 <div class="buttons">
+                   <button id="address-pay" disabled>支付并生成</button><a href="/__host/security">设置支付密码</a>
+                 </div>
+diff --git a/selfhost/commerce/ui/store.js b/selfhost/commerce/ui/store.js
+index e3b58eca6194caafaaa618f3a7df9e61b27c3afb..cfacb15a17d377dfbf284023b4d020e91b54934e 100644
+--- a/selfhost/commerce/ui/store.js
++++ b/selfhost/commerce/ui/store.js
+@@ -656,7 +656,7 @@ form('address-form', async (f, el) => {
+   const receipt =
+     r.paymentStatus === 'refunded'
+       ? '订单未完成，' + paid + ' 已退回余额。'
+-      : r.paymentStatus === 'reserved'
++      : r.paymentStatus === 'review' ? '订单异常，已转人工复核。' : r.paymentStatus === 'reserved'
+         ? '原订单已预留 ' + paid + '。'
+         : '已支付 ' + paid + '。';
+   message(receipt + '订单号 ' + r.requestNo);
+diff --git a/selfhost/commerce/ui/support-links.js b/selfhost/commerce/ui/support-links.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..e6aa39395a2f52476eaccfa348c63f63f367cfac
+--- /dev/null
++++ b/selfhost/commerce/ui/support-links.js
+@@ -0,0 +1,27 @@
++(() => {
++  if(location.pathname==='/__host/support')return;
++  const order=/^\/address-orders\/(ADDR-[\dA-Z-]+)\/?$/.exec(location.pathname)?.[1];
++  const href='/__host/support'+(order?'?order='+encodeURIComponent(order):'');
++  function links(floating) {
++    const nav=document.createElement('nav');
++    nav.className=floating?'support-links support-floating':'support-links';
++    nav.setAttribute('aria-label','客服');
++    for(const [label,url] of [['客服工单',href],['TG @YorkeYue','https://t.me/YorkeYue']]){
++      const link=document.createElement('a');
++      link.href=url;link.textContent=label;link.target='_blank';link.rel='noopener noreferrer';nav.append(link);
++    }
++    return nav;
++  }
++  const floating=links(true);
++  document.body.append(floating);
++  function attach(){
++    for(const modal of document.querySelectorAll('dialog[open], [role="dialog"][aria-modal="true"]')){
++      if(!modal.querySelector('.support-links'))modal.append(links(false));
++    }
++  }
++  attach();
++  let scheduled=false;
++  new MutationObserver(()=>{
++    if(!scheduled){scheduled=true;requestAnimationFrame(()=>{scheduled=false;attach();});}
++  }).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['open','aria-modal']});
++})();
+diff --git a/selfhost/commerce/ui/support.css b/selfhost/commerce/ui/support.css
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ffb9185fbe066a6290d848bdbbf387e41f22d59
+--- /dev/null
++++ b/selfhost/commerce/ui/support.css
+@@ -0,0 +1 @@
++.support-links{display:flex;align-items:center;justify-content:center;gap:.8rem;font:600 .82rem/1.4 system-ui,sans-serif;margin:.75rem 0}.support-links a{color:#1e4684;text-decoration:underline;text-underline-offset:3px}.support-floating{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));left:max(12px,env(safe-area-inset-left));margin:0;padding:.65rem .8rem;z-index:9999;background:white;border:1px solid #ccd7e7;border-radius:8px;box-shadow:0 3px 14px #233c6521}.support-page{background:#f4f7fb;color:#213147;font:16px/1.5 system-ui,sans-serif;margin:0}.support-page main{max-width:48rem;margin:2rem auto;padding:0 1rem 4rem}.support-page section,.support-page article{padding:1rem;border:1px solid #d4deea;border-radius:10px;background:white;margin:1rem 0}.support-page h1,.support-page h2{line-height:1.25}.support-page h2{font-size:1.2rem}.support-page label,.support-page small{display:block}.support-page input:not([type=hidden]),.support-page textarea{box-sizing:border-box;width:100%;margin:.3rem 0 .8rem;padding:.6rem;font:inherit;border:1px solid #a7b8cd;border-radius:5px}.support-page button{font:inherit;padding:.5rem .9rem;border:0;border-radius:5px;background:#254976;color:white;cursor:pointer}.support-page p{white-space:pre-wrap;overflow-wrap:anywhere}.support-page a{color:#214e93}
+diff --git a/selfhost/release-manifest.json b/selfhost/release-manifest.json
+index 7ef16a1a3e4f847aa5efc187c51d70f3d6a27744..b53f7466a5b1550ec2e896f1952a891a579b1081 100644
+--- a/selfhost/release-manifest.json
++++ b/selfhost/release-manifest.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": "2026.11.21-unclaimed-address-refund",
++  "version": "2026.11.21-owner-support",
+   "source": "YorkeAI self-host runtime",
+   "includedReleases": [
+     "mail-delivery",
+@@ -20,7 +20,8 @@
+     "public-market-and-bilingual-interface-v1.7.0",
+     "blank-login-fields-v1.7.1",
+     "batch-esim-archive-and-restore-v1.8.0",
+-    "unclaimed-address-refund"
++    "unclaimed-address-refund",
++    "owner-refund-review-and-support"
+   ],
+   "portabilityChanges": [
+     "authorize-site-outlook.mjs",
+@@ -57,24 +58,27 @@
+     "authorize-site-outlook.mjs": "bc6a50bfd887279e0bf2fc70e2618efdf157f1c48d1478a90e29307e26bf9569",
+     "cache-template-previews.mjs": "f40a40711769c5d811641df0175824ddbfc455a65b2e4d4e5af0255bf1886266",
+     "commerce/USDT.md": "dd5ce4ca6da78e72356e3f3ecde0337e8e1f2e8d5c04eb657f242e89ea1f8197",
+-    "commerce/address-billing.mjs": "9e50455a8a43f571242eeb693617a3d1d217892faa816aa75e2fff713048f0b8",
++    "commerce/address-billing.mjs": "8dbb9c5e7531585ffffe151ccf53e2ed57286d44e8e12ca17a3914f6ac460f44",
+     "commerce/archive-downloads.mjs": "2601899928b256f0dccfedb5d75b6e21c88c3e6db0cf4844a524b6a86a42df98",
+-    "commerce/commerce.mjs": "60504e35e4110f5d2a6d512102c4064da13012873037bc22babaf4621df7a7eb",
++    "commerce/commerce.mjs": "e55498cb3e2b5d32433d490be7e858243caac981fabd830bcb57d08c48ecbf41",
+     "commerce/deposits.mjs": "48e5220c7ddc6fdded679dcbdc2725496280a1bb048e51385245ccc20146c8ca",
+-    "commerce/locale-html.mjs": "9ef3b444a7698059d0423ab2c8b0857a98e8aca5a99668dad3243fa6e9a19777",
++    "commerce/locale-html.mjs": "2fa93d8b49e436afe13b35e1bf83e4973c3f4fd7a48354147ece4ba1941b69c9",
+     "commerce/pricing.mjs": "07d90dd7fc211bf584f6d762ea4d0440733f878fd7f862c066d7c2f22f704684",
+-    "commerce/ui/bridge.js": "b798e70a95fbc7e11fe2ccaeb894a818362ef51208a344742dcf0f5a2970e782",
++    "commerce/support.mjs": "a6770b512825af6b3f0adc818f7d5e23a2c5bc819b7e647ffcfbe46d0e34a569",
++    "commerce/ui/bridge.js": "3db1a10ac17c39b478e25cd78deb066cbbf281e3a420c89e9f6919225e3469cf",
+     "commerce/ui/dashboard.css": "becb36a883eb4ac3a4b406a18b61f50c93e53ce6579f373936766636a68ebd6e",
+-    "commerce/ui/locale-data.js": "092d5763d7d7408c3bf3584a002a00f18a8721a09c3b2f9da7b78fe669aa9438",
++    "commerce/ui/locale-data.js": "0984c9cbbc23c7e6e58a7eea198286cd9a4bd6eff57c6ef9a064e161601dee28",
+     "commerce/ui/locale-operations.js": "d10b3df1d8cf90c1c07d9e49aa549ee8a465112132b565269e0cc4bbb3faa66a",
+     "commerce/ui/locale.css": "d5afb692ce43a7f7240abb7a2460112048da3866e9f46609ab0b886f647efc6d",
+     "commerce/ui/locale.js": "f77d24b87d650ce60bce41a8e81a2ca06f8b11bcfd505611f8e6e5437faee6b5",
+     "commerce/ui/market-flags.css": "2b220409ebd5bc1f54b7b9d9136ec33e5d5be763d87465abd66ec4ff2bf8853d",
+     "commerce/ui/market-table.css": "25bc02e02918d9551937d561016b913f1d2692d956119dee9d220c054ac6a458",
+     "commerce/ui/market-table.js": "2211a17b63b39a2af85b5950af0b228e03f2ad2886c3f7a1c554cda7b8260bba",
+-    "commerce/ui/store.html": "dbecdfa1dafaabcf2cf7a54371c2a6bbafe54f8da3c7c02c4fd666f29618fe4d",
+-    "commerce/ui/store.js": "053b7a26f12bf2bd17f4e84058059cab4ec32b9ada16deac4ae615d4909c08ca",
++    "commerce/ui/store.html": "0e214a39b2788223cb09cc581d72df538ee9ead38f2d8ababa0071851d4c91e1",
++    "commerce/ui/store.js": "b2d52b942aed4a84dbaf262262259187931a26fe7051ca3aae620d69357b06db",
+     "commerce/ui/style.css": "5254e7c1845e7cbaa0ca743672212ce6de53ad11a6dbbff1875c73fe7032480e",
++    "commerce/ui/support-links.js": "4b5f6dc575ce0ba42eb0d706ddea5f947f86cbc9730fd14495185a1504c84431",
++    "commerce/ui/support.css": "45b087a6c351ae182a938ae4b535e12714a87cebb9b1f4dfc3bb9cb644e24026",
+     "commerce/usdt-chain.mjs": "911a251c30899ba12efbcbcb428a0d307c2d82952addc14497987c90fe2b92ab",
+     "commerce/vendor/qrcode.mjs": "ea91d7118a5395289170da848b7c6758b996163bfbccf312591ab65a4911b7c0",
+     "commerce/wallet.mjs": "ae7bdd3d23e497eb2e66815af1f0072472005efa659186b26f604be199537f60",
+@@ -240,9 +244,9 @@
+     "resource-operations/session-store.mjs": "45c7ff900b9eee37d418e55edab9562683a57196553904f410ad9b07520bc77f",
+     "runtime.mjs": "058ff08d79a697a45f5f08cf991992612501c0b10f1c92a0eb675d43aff88340",
+     "sample-mail-attachments.mjs": "70dcc3db130e03e072bf24e9d49dd6d35b2601bfc5b22e0d7adc9ed20f6ae337",
+-    "server.mjs": "1bc75f0e23b0d9e65859aed089c38a74276ac48d1949eb4625dd80616f5e490f",
++    "server.mjs": "89d4be2f95403e008b7ed070b9b1949584e732e2ecd4c7bf0345b944428d3611",
+     "setup.mjs": "cf977ed6d85ee23ade8278f8bc3205605b5487ef47a40da9259592918120b0fa",
+-    "site-order-queue.mjs": "19d4e268b704f173e20ea45302d7639cca9f2dc10703f89487809239a49fa7d4",
++    "site-order-queue.mjs": "3d0ef29ed8265cbedd55971f4020f6a0b20e3836d495b3fde9cee45285d501b5",
+     "template-library-ui/app.js": "be18e984f6fad0ce3567afe55c39e8e5583c8bd547c3052fa1e40406a58dea77",
+     "template-library-ui/enhance.js": "e3958fb96889161442bb9673f6646d7f8e0083d15d7c9418b2cac58add052776",
+     "template-library-ui/index.html": "1395eadc34fdef4b9a8fc20d8dbb5fddd2dc92754ff246f1b3042fa42180113f",
+@@ -254,8 +258,9 @@
+     "test/purchases-integration.test.mjs": "ae2d7b9a4c8fa18a0b61e91eb0046e8f202e9386e3ac2ec04a95f7356710663c",
+     "test/registration-integration.test.mjs": "fa16fca35122d039209cd3520377bdfe1ffd9289a0332675cc680354d86cb88b",
+     "test/renewal-integration.test.mjs": "f4e3f6f15c07afb9491374488aaa0733fe95022d98bf5c69c2b50189b3aa1d46",
+-    "test/unclaimed-refund-integration.test.mjs": "3bdf94521ed937a458b46285ede19aa5a2cbe85aab9b26e3e32d0cfae601621c",
+-    "test/wallet-address-integration.test.mjs": "8c4804971c14871bc43f9d8d37cc45a5959f126bc13d6e981021c30d8114cce6",
++    "test/support-integration.test.mjs": "fa4d99263c6df889ce5dfd902c963286ad6c279637dce60283363337800b3938",
++    "test/unclaimed-refund-integration.test.mjs": "6e2fc1b5c0ca437a1c6745738cda88ff5d39f19536717559ff657e60e5314c05",
++    "test/wallet-address-integration.test.mjs": "b9527dce4282af2bf4c2fddb7afd5bc81ae11b7f710cd7ac910e935f357c2701",
+     "test/wallet-fixture.mjs": "87dbf8876fd56d40edc83ae5433d7965ab0339a478487d4f32c1045b81fc8b2f",
+     "test/warehouse-integration.test.mjs": "056fa131158d54b018007a65df09a7a520a76dee7b300de2968e7e362dff6a85"
+   }
+diff --git a/selfhost/server.mjs b/selfhost/server.mjs
+index 0af9084e86407565975ebffd2140a2094f1b6090..05a6cff183caf7256f94c995d5afdf8b579bf07b 100644
+--- a/selfhost/server.mjs
++++ b/selfhost/server.mjs
+@@ -53,7 +53,7 @@ const commerceTimer=setInterval(reconcileCommerce,30_000);
+ const operations = makeResourceOperations({ root, config, mf, identities, readBody: body, outlook, purchases, wallet });
+ function returnPath(value) {
+   const clean = safeReturn(value);
+-  const permitted = /^\/__host\/(?:accounts|wallet|shop|security|payment-review|template-archive\/?)(?:\?|$)/;
++  const permitted = /^\/__host\/(?:accounts|wallet|shop|security|support|payment-review|template-archive\/?)(?:\?|$)/;
+   if (clean === '/' && typeof value === 'string' && permitted.test(value) && !/[\\\r\n]/.test(value)) {
+     return value;
+   }
+@@ -65,7 +65,7 @@ function customerDestination(url) {
+     if (params.get('section') !== 'wallet') return '/';
+     return '/?section=wallet' + (params.get('action') === 'recharge' ? '&action=recharge' : '');
+   }
+-  const pages = new Set(['/','/__host/wallet','/__host/security','/__host/template-archive','/__host/template-archive/','/mail-delivery']);
++  const pages = new Set(['/','/__host/support','/__host/wallet','/__host/security','/__host/template-archive','/__host/template-archive/','/mail-delivery']);
+   const orderPage = url.pathname.startsWith('/address-orders/') && customerWorkbenchRoute('GET',url.pathname);
+   return pages.has(url.pathname) || orderPage ? url.pathname + url.search : '/';
+ }
+@@ -202,8 +202,9 @@ const server = https.createServer(tls, async (req, res) => {
+     res.statusCode = response.status;
+     for (const [key, value] of response.headers) if (!['transfer-encoding', 'content-encoding', 'content-length'].includes(key)) res.setHeader(key, value);
+     res.setHeader('x-content-type-options', 'nosniff');
++    if (req.method === 'GET' && response.headers.get('content-type')?.includes('text/html')) res.removeHeader('content-length');
+     if (req.method === 'GET' && url.pathname === '/' && response.headers.get('content-type')?.includes('text/html')) return res.end(withLocale(enhanceArchiveHtml(await response.text(), session.user).replace('</head>', '<link rel="stylesheet" href="/__host/esim-checkout.css"><link rel="stylesheet" href="/__host/dashboard.css"><link rel="stylesheet" href="/__host/market-table.css"><script defer src="/__host/esim-checkout.js"></script><script defer src="/__host/market-table.js"></script><script defer src="/__host/commerce-bridge.js"></script></head>').replace('</body>', '<script defer src="/__host/resource-operations.js"></script></body>')));
+-    const localizedPage = url.pathname === '/mail-delivery' || url.pathname.startsWith('/address-orders/');
++    const localizedPage = !url.pathname.startsWith('/api/');
+     if (req.method === 'GET' && localizedPage && response.headers.get('content-type')?.includes('text/html')) {
+       return res.end(withLocale(await response.text()));
+     }
+diff --git a/selfhost/site-order-queue.mjs b/selfhost/site-order-queue.mjs
+index d18ab2299fce02b87f6008804ca244ad023f7e77..31f613ff3d7d05fb2501176f1148d080165e2c03 100644
+--- a/selfhost/site-order-queue.mjs
++++ b/selfhost/site-order-queue.mjs
+@@ -1,4 +1,4 @@
+-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
++import { mkdir, readFile, readdir, rename, writeFile, stat } from 'node:fs/promises';
+ import path from 'node:path';
+ import { timingSafeEqual } from 'node:crypto';
+ 
+@@ -40,26 +40,37 @@ export async function processSiteQueue(directory, handle, onError = () => {}) {
+   let entries;
+   try { entries = await readdir(directory, { withFileTypes: true }); }
+   catch (error) { if (error.code === 'ENOENT') return; throw error; }
+-  for (const entry of entries.filter(e => e.isDirectory() && orderPattern.test(e.name)).sort((a,b) => a.name.localeCompare(b.name))) {
+-    const job = path.join(directory, entry.name);
+-    const active = path.join(job, 'processing.json');
+-    try { await rename(path.join(job, 'pending.json'), active); }
+-    catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+-    const claimedAt = Date.now();
+-    try {
+-      const data = JSON.parse(await readFile(active, 'utf8'));
+-      if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
+-      if (Number.isSafeInteger(data.claimDeadlineMs) && claimedAt > data.claimDeadlineMs) {
+-        // The billing service will reconcile this marker. No form or payment has started.
+-        await rename(active, path.join(job, 'billing-unclaimed-timeout.json'));
+-        continue;
++  // A live consumer reports even while it is busy filling an earlier order.
++  const heartbeat = path.join(directory, '.consumer-heartbeat');
++  const pulse = () => writeFile(heartbeat, '', {mode: 0o600});
++  await pulse();
++  const timer = setInterval(() => { void pulse().catch(() => {}); }, 15_000);
++  timer.unref();
++  try {
++    const waiting = [];
++    for (const entry of entries) {
++      if (!entry.isDirectory() || !orderPattern.test(entry.name)) continue;
++      const job = path.join(directory, entry.name);
++      try {
++        const published = await stat(path.join(job, 'pending.json'));
++        waiting.push({entry, job, time:published.mtimeMs});
++      } catch (error) { if (error.code !== 'ENOENT') throw error; }
++    }
++    waiting.sort((a,b) => a.time-b.time || a.entry.name.localeCompare(b.entry.name));
++    for (const {entry,job} of waiting) {
++      const active = path.join(job, 'processing.json');
++      try { await rename(path.join(job, 'pending.json'), active); }
++      catch (error) { if (error.code === 'ENOENT') continue; throw error; }
++      try {
++        const data = JSON.parse(await readFile(active, 'utf8'));
++        if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
++        await handle(data);
++        await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
++        await rename(active, path.join(job, 'completed-payload.json'));
++      } catch (error) {
++        await rename(active, path.join(job, 'failed-payload.json'));
++        await onError(entry.name, error);
+       }
+-      await handle(data);
+-      await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
+-      await rename(active, path.join(job, 'completed-payload.json'));
+-    } catch (error) {
+-      await rename(active, path.join(job, 'failed-payload.json'));
+-      await onError(entry.name, error);
+     }
+-  }
++  } finally { clearInterval(timer); }
+ }
+diff --git a/selfhost/test/support-integration.test.mjs b/selfhost/test/support-integration.test.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..5bc29905407f5009a72878265856fb1e25a96034
+--- /dev/null
++++ b/selfhost/test/support-integration.test.mjs
+@@ -0,0 +1,36 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {randomUUID} from 'node:crypto';
++import {DatabaseSync} from 'node:sqlite';
++import {createSupport} from '../commerce/support.mjs';
++import {createAddressBilling} from '../commerce/address-billing.mjs';
++import {createWallet} from '../commerce/wallet.mjs';
++
++test('ticket privacy, durable owner replies, idempotent submission and owner-only financial decisions', async t=>{
++  const db=new DatabaseSync(':memory:');t.after(()=>db.close());
++  const config={origin:'https://shop.invalid',bindings:{RESOURCE_ADMIN_EMAILS:'boss@example.invalid,staff@example.invalid'}};
++  const wallet=createWallet(db),address=createAddressBilling({db,mf:{},config,wallet});
++  const handler=createSupport({db,config,address,readBody:async req=>Buffer.from(req.body)});
++  const customer={id:'a',email:'a@example.invalid',role:'customer'},other={...customer,id:'b',email:'b@example.invalid'};
++  const boss={id:'boss',role:'employee',email:'boss@example.invalid'},staff={...boss,email:'staff@example.invalid'};
++  const route=async(user,fields,origin=config.origin)=>{
++    const req={method:fields?'POST':'GET',headers:{origin,'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams(fields).toString()};
++    const res={writeHead(status,headers){this.status=status;this.headers=headers;},end(body){this.body=body;}};
++    assert(await handler(req,res,new URL('/__host/support',config.origin),user));return res;
++  };
++  const id=randomUUID(),fields={action:'create',id,order:'ADDR-TEST',message:'<script>test</script> 付费异常'};
++  assert.equal((await route(customer,fields,'https://other.invalid')).status,403);
++  assert.equal((await route(customer,fields)).status,303);
++  assert.equal((await route(customer,fields)).status,303);
++  assert.equal(db.prepare('SELECT COUNT(*) n FROM support_tickets').get().n,1);
++  assert.doesNotMatch((await route(other)).body,/付费异常/);
++  assert.match((await route(customer)).body,/&lt;script&gt;/);
++  assert.match((await route(customer)).body,/https:\/\/t.me\/YorkeYue/);
++  assert.doesNotMatch((await route(staff)).body,/付费异常/);
++  assert.equal((await route(staff,{action:'decide',id,decision:'approved',note:'x'})).status,403);
++  assert.equal((await route(customer,{action:'reply',id,reply:'x'})).status,403);
++  assert.match((await route(boss)).body,/付费异常/);
++  assert.equal((await route(boss,{action:'reply',id,reply:'核查完成'})).status,303);
++  assert.match((await route(customer)).body,/核查完成/);
++  assert.equal(db.prepare('SELECT COUNT(*) n FROM wallet_entries').get().n,0);
++});
+diff --git a/selfhost/test/unclaimed-refund-integration.test.mjs b/selfhost/test/unclaimed-refund-integration.test.mjs
+index d24d31a3d390711e745e3fe7aa5fb5fbc9d1a2e0..6a11bd43049603f6cbe2441301af924f5974007e 100644
+--- a/selfhost/test/unclaimed-refund-integration.test.mjs
++++ b/selfhost/test/unclaimed-refund-integration.test.mjs
+@@ -2,17 +2,19 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { DatabaseSync } from 'node:sqlite';
+ import { randomUUID } from 'node:crypto';
+-import { mkdtemp, readFile, rename, rm } from 'node:fs/promises';
++import { mkdtemp, mkdir, readFile, rename, rm, writeFile, utimes } from 'node:fs/promises';
+ import { tmpdir } from 'node:os';
+ import path from 'node:path';
+ import { createWallet } from '../commerce/wallet.mjs';
+ import { createAddressBilling } from '../commerce/address-billing.mjs';
+ import { processSiteQueue } from '../site-order-queue.mjs';
+ 
+-test('three-minute cancellation arbitrates with the consumer and refunds the original debit once', async t => {
+-  const directory = await mkdtemp(path.join(tmpdir(), 'billing-timeout-'));
++test('healthy queues wait and only the owner can settle an unavailable consumer refund once', async t => {
++  const root = await mkdtemp(path.join(tmpdir(), 'billing-timeout-'));
++  const directory = path.join(root,'queue');
++  await mkdir(directory);
+   const db = new DatabaseSync(':memory:');
+-  t.after(async () => { db.close(); await rm(directory, {recursive:true, force:true}); });
++  t.after(async () => { db.close(); await rm(root, {recursive:true, force:true}); });
+   db.exec('CREATE TABLE address_orders(request_no TEXT PRIMARY KEY,user_id TEXT,status TEXT,status_message TEXT,error TEXT,updated_at TEXT,external_order_no TEXT,payment_amount TEXT)');
+   const d1 = {
+     prepare(sql) {
+@@ -32,30 +34,59 @@ test('three-minute cancellation arbitrates with the consumer and refunds the ori
+   let clock = Date.now();
+   const wallet = createWallet(db);
+   wallet.credit({userId:user.id,amountRaw:500000,reference:'seed'});
+-  const billing = () => createAddressBilling({db,mf,wallet,now:()=>clock,config:{origin:'https://test.invalid',siteOrderQueueDirectory:directory}});
++  const billing = () => createAddressBilling({db,mf,wallet,now:()=>clock,config:{origin:'https://test.invalid',siteOrderQueueDirectory:directory,bindings:{RESOURCE_ADMIN_EMAILS:'boss@example.invalid,staff@example.invalid'}}});
+   const payload = Buffer.from(JSON.stringify({template:{name:'Fixture'},profile:{fullName:'Fixture',addressLines:['a','b','c'],recipientEmail:'r@example.invalid'}}));
+   const submit = async () => (await billing().submit(user,randomUUID(),payload,80000)).data.requestNo;
+   const expired = await submit(), claimed = await submit(), interrupted = await submit();
+   await rename(path.join(directory,claimed,'pending.json'),path.join(directory,claimed,'processing.json'));
+   const status = no => db.prepare('SELECT status FROM address_orders WHERE request_no=?').get(no).status;
+-  const deadline = JSON.parse(await readFile(path.join(directory,expired,'pending.json'),'utf8')).claimDeadlineMs;
+-  assert.equal(deadline, clock + 180000);
+-  clock = deadline;
++  assert.equal(JSON.parse(await readFile(path.join(directory,expired,'pending.json'),'utf8')).claimDeadlineMs,undefined);
++  clock += 240000;
++  const heart = path.join(directory,'.consumer-heartbeat');
++  await writeFile(heart,'');
++  await utimes(heart,new Date(clock),new Date(clock));
+   await billing().sync();
+   assert.equal(status(expired),'queued');
+-  // Crash after withdrawing the job, before D1 and wallet settlement.
+   await rename(path.join(directory,interrupted,'pending.json'),path.join(directory,interrupted,'billing-unclaimed-timeout.json'));
+-  clock++;
++  clock += 190000;
+   await Promise.all([billing().sync(),billing().sync()]);
+   assert.equal(status(expired),'failed'); assert.equal(status(interrupted),'failed');
+-  assert.equal(status(claimed),'queued'); assert.equal(wallet.balance(user.id),420000);
+-  const credits = () => db.prepare("SELECT delta FROM wallet_entries WHERE reference LIKE 'refund:%'").all().map(x=>x.delta);
+-  assert.deepEqual(credits(),[80000,80000]);
+-  await processSiteQueue(directory,async()=>assert.fail('expired jobs must not run'));
+-  // If the consumer wakes between timer ticks after the deadline, it withdraws the job itself.
+-  clock = Date.now()-200000;
++  assert.equal(status(claimed),'queued'); assert.equal(wallet.balance(user.id),260000);
++  const billId = no => db.prepare('SELECT id FROM address_bills WHERE request_no=?').get(no).id;
++  const owner = {id:'boss',email:'boss@example.invalid',role:'employee'};
++  const review = () => billing().decideRefund(owner,billId(expired),'approved','已核实程序停止');
++  for (const subject of [user,{id:'staff',email:'staff@example.invalid',role:'employee'}])
++    await assert.rejects(billing().decideRefund(subject,billId(expired),'approved','测试'),{status:403});
++  await Promise.all([review(),review()]); await billing().sync();
++  assert.equal(wallet.balance(user.id),340000);
++  await billing().decideRefund(owner,billId(interrupted),'declined','核对后不予退款');
++  await assert.rejects(billing().decideRefund(owner,billId(interrupted),'approved','重复操作'),{status:409});
++  assert.equal(wallet.balance(user.id),340000);
++  const records=db.prepare("SELECT decision,actor FROM address_refund_reviews ORDER BY decision").all();
++  assert.deepEqual(records.map(r=>[r.decision,r.actor]),[['approved','boss'],['declined','boss']]);
++  await processSiteQueue(directory,async()=>assert.fail('parked jobs must not run'));
++  // A missing callback opens a case, and a later delivery ends it without issuing a refund.
+   const late = await submit();
+-  await processSiteQueue(directory,async()=>assert.fail('late claim must not run'),async(_,error)=>{throw error});
+-  clock = Date.now(); await billing().sync(); await billing().sync();
+-  assert.equal(status(late),'failed'); assert.deepEqual(credits(),[80000,80000,80000]);
++  const staleAt = new Date(clock - 11 * 60_000).toISOString();
++  const stale = db.prepare("UPDATE address_orders SET status='filling',updated_at=? WHERE request_no=?");
++  await rename(path.join(directory,late,'pending.json'),path.join(directory,late,'processing.json'));
++  stale.run(staleAt,late);
++  await billing().sync();
++  const decision = no => db.prepare('SELECT decision FROM address_refund_reviews WHERE bill_id=?').get(billId(no)).decision;
++  assert.equal(decision(late),'pending');
++  await assert.rejects(billing().decideRefund(owner,billId(late),'approved','仍在执行'),{status:409});
++  db.prepare("UPDATE address_orders SET status='delivered' WHERE request_no=?").run(late);
++  await billing().sync();
++  assert.equal(decision(late),'delivered');
++  assert.equal(wallet.balance(user.id),260000);
++
++  // A stopped, stale job with no payment or delivery evidence can be closed by its reviewer.
++  const stopped = await submit();
++  await rename(path.join(directory,stopped,'pending.json'),path.join(directory,stopped,'failed-payload.json'));
++  stale.run(staleAt,stopped);
++  await billing().sync();
++  assert.equal(decision(stopped),'pending');
++  await billing().decideRefund(owner,billId(stopped),'approved','已确认原任务停止且未付款');
++  assert.equal(status(stopped),'failed');
++  assert.equal(wallet.balance(user.id),260000);
+ });
+diff --git a/selfhost/test/wallet-address-integration.test.mjs b/selfhost/test/wallet-address-integration.test.mjs
+index 6e84443e39119a9535b3a47fdacb663dc8507501..40a3ae13e5a84171e611920e012e167f2a9ebefb 100644
+--- a/selfhost/test/wallet-address-integration.test.mjs
++++ b/selfhost/test/wallet-address-integration.test.mjs
+@@ -43,13 +43,13 @@ test('wallet atomically limits combined pending purchases and works on Node with
+   raw.close();
+ });
+ 
+-test('packaged Worker validates the billed order reference; a failed prepaid order refunds 10 U once', async () => {
++test('packaged Worker validates the billed order reference; a failed prepaid order requires owner review', async () => {
+   const root = await mkdtemp(path.join(tmpdir(), 'lumen-billing-'));
+   await symlink(path.join(source, 'dist'), path.join(root, 'dist'), 'dir');
+   await mkdir(path.join(root, 'data'));
+   const config = {
+     origin: 'https://billing.invalid',
+-    bindings: { ADDRESS_ORDER_CALLBACK_TOKEN: 'fixture-token' },
++    bindings: { ADDRESS_ORDER_CALLBACK_TOKEN: 'fixture-token', RESOURCE_ADMIN_EMAILS:'boss@example.invalid' },
+     siteOrderQueueDirectory: path.join(root, 'queue'),
+   };
+   const mf = worker(root, config);
+@@ -73,6 +73,7 @@ test('packaged Worker validates the billed order reference; a failed prepaid ord
+     assert.equal(templates.status, 200);
+     const { id, name } = (await templates.json()).items[0];
+     const payload = Buffer.from(JSON.stringify({ template: { id, name }, profile }));
++    const owner={id:'boss',email:'boss@example.invalid',role:'employee'};
+     const bill = createAddressBilling({ db, mf, wallet, config });
+     await assert.rejects(bill.submit(user, randomUUID(), payload), { status: 402 });
+     const unsigned = await mf.dispatchFetch(config.origin + '/api/personal-details/submit', {
+@@ -90,9 +91,11 @@ test('packaged Worker validates the billed order reference; a failed prepaid ord
+         .status,
+       'failed'
+     );
+-    assert.equal(wallet.balance(user.id), 100000);
++    assert.equal(wallet.balance(user.id), 0);
++    await bill.decideRefund(owner,'address:'+key,'approved','确认异常');
++    assert.equal(wallet.balance(user.id),100000);
+     assert.equal(wallet.snapshot(user.id).heldRaw, 0);
+-    assert.equal(result.data.paymentStatus,'refunded');
++    assert.equal(result.data.paymentStatus,'review');
+     assert.equal(wallet.snapshot(user.id).entries.filter(e=>e.reference.startsWith('refund:')).length,1);
+     assert.equal((await bill.submit(user, key, payload)).data.requestNo, result.data.requestNo);
+     assert.equal((await d1.prepare('SELECT COUNT(*) n FROM address_orders').first()).n, 1);
+@@ -119,19 +122,22 @@ test('packaged Worker validates the billed order reference; a failed prepaid ord
+       .bind('legacy', legacy, result.data.requestNo)
+       .run();
+     assert.equal((await callback(legacy, 'delivered')).status, 200);
++    const invalidKey = randomUUID();
+     const invalid = await bill.submit(
+       user,
+-      randomUUID(),
++      invalidKey,
+       Buffer.from(JSON.stringify({ template: { id: 999999, name: 'unknown' }, profile }))
+     );
+     assert.equal(invalid.status, 400);
++    await bill.decideRefund(owner,'address:'+invalidKey,'approved','确认入账');
+     assert.equal(wallet.balance(user.id), 100000);
+     const agent = {...user, discountBps:8000};
+     await assert.rejects(bill.submit(agent,randomUUID(),payload,100000),{status:409});
+     const agentKey = randomUUID();
+     const discounted = await bill.submit(agent,agentKey,payload,80000);
+     assert.equal(discounted.data.paidAmountRaw,80000);
+-    assert.equal(discounted.data.paymentStatus,'refunded');
++    assert.equal(discounted.data.paymentStatus,'review');
++    await bill.decideRefund(owner,'address:'+agentKey,'approved','确认异常');
+     assert.equal(wallet.balance(user.id),100000);
+     assert.equal(wallet.snapshot(user.id).entries.find(e=>e.reference==='refund:address:'+agentKey).delta,80000);
+     assert.equal((await bill.submit({...agent,discountBps:7500},agentKey,payload,75000)).data.paidAmountRaw,80000);
+@@ -163,6 +169,7 @@ test('restart recovers one acknowledged queue file, charges once before generati
+             run: async () => {
+               assert.ok(sql.includes('status_message'));
+               orders.get(args[2]).message = args[0];
++              if (sql.includes("SET status='failed'")) orders.get(args[2]).status='failed';
+             },
+           };
+         },
+@@ -218,7 +225,7 @@ test('restart recovers one acknowledged queue file, charges once before generati
+     now += 11 * 60_000;
+     await make().sync();
+     const ref = db.prepare('SELECT request_no FROM address_bills WHERE id=?').get('address:' + key).request_no;
+-    assert.match(orders.get(ref).message, /管理员核对/);
++    assert.match(orders.get(ref).message, /人工复核/);
+     assert.equal(existsSync(path.join(root, ref, 'pending.json')), false);
+     assert.equal((await restarted.submit(user, key, payload)).data.requestNo, ref);
+     assert.equal(dispatches, 2);
+@@ -231,8 +238,8 @@ test('restart recovers one acknowledged queue file, charges once before generati
+       db.prepare("INSERT INTO address_bills VALUES(?,?,?,?,?,'held')").run(id,reference,owner,'old-hash',now);
+       orders.set(reference,{status,user:owner});
+       await make().sync();
+-      assert.equal(wallet.snapshot(owner).heldRaw,0);
+-      assert.equal(wallet.balance(owner),status==='failed'?addressPriceRaw:0);
++      assert.equal(wallet.snapshot(owner).heldRaw,status==='failed'?addressPriceRaw:0);
++      assert.equal(wallet.balance(owner),0);
+       assert.equal(wallet.snapshot(owner).entries.length,status==='failed'?1:2);
+     }
+   } finally {

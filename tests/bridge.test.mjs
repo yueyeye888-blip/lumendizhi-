@@ -51,3 +51,14 @@ test('interrupted claimed job is not replayed on restart',async t=>{
   await processSiteQueue(dir,async()=>{runs++;});
   assert.equal(runs,0);
 });
+test('picks older pending items first even when their request numbers sort last',async t=>{
+  const dir=await fixture(t);
+  const first='ADDR-20261116-FFFFFFFF', second='ADDR-20261116-00000001';
+  await enqueueSiteOrder(dir,first,payload,'admin@example.invalid');
+  await enqueueSiteOrder(dir,second,payload,'admin@example.invalid');
+  const {utimes}=await import('node:fs/promises');
+  await utimes(path.join(dir,first,'pending.json'),new Date(1000),new Date(1000));
+  await utimes(path.join(dir,second,'pending.json'),new Date(2000),new Date(2000));
+  const seen=[];await processSiteQueue(dir,async job=>seen.push(job.requestNo));
+  assert.deepEqual(seen,[first,second]);
+});

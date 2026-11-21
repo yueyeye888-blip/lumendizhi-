@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -40,26 +40,37 @@ export async function processSiteQueue(directory, handle, onError = () => {}) {
   let entries;
   try { entries = await readdir(directory, { withFileTypes: true }); }
   catch (error) { if (error.code === 'ENOENT') return; throw error; }
-  for (const entry of entries.filter(e => e.isDirectory() && orderPattern.test(e.name)).sort((a,b) => a.name.localeCompare(b.name))) {
-    const job = path.join(directory, entry.name);
-    const active = path.join(job, 'processing.json');
-    try { await rename(path.join(job, 'pending.json'), active); }
-    catch (error) { if (error.code === 'ENOENT') continue; throw error; }
-    const claimedAt = Date.now();
-    try {
-      const data = JSON.parse(await readFile(active, 'utf8'));
-      if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
-      if (Number.isSafeInteger(data.claimDeadlineMs) && claimedAt > data.claimDeadlineMs) {
-        // The billing service will reconcile this marker. No form or payment has started.
-        await rename(active, path.join(job, 'billing-unclaimed-timeout.json'));
-        continue;
-      }
-      await handle(data);
-      await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
-      await rename(active, path.join(job, 'completed-payload.json'));
-    } catch (error) {
-      await rename(active, path.join(job, 'failed-payload.json'));
-      await onError(entry.name, error);
+  // A live consumer reports even while it is busy filling an earlier order.
+  const heartbeat = path.join(directory, '.consumer-heartbeat');
+  const pulse = () => writeFile(heartbeat, '', {mode: 0o600});
+  await pulse();
+  const timer = setInterval(() => { void pulse().catch(() => {}); }, 15_000);
+  timer.unref();
+  try {
+    const waiting = [];
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !orderPattern.test(entry.name)) continue;
+      const job = path.join(directory, entry.name);
+      try {
+        const published = await stat(path.join(job, 'pending.json'));
+        waiting.push({entry, job, time:published.mtimeMs});
+      } catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-  }
+    waiting.sort((a,b) => a.time-b.time || a.entry.name.localeCompare(b.entry.name));
+    for (const {entry,job} of waiting) {
+      const active = path.join(job, 'processing.json');
+      try { await rename(path.join(job, 'pending.json'), active); }
+      catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+      try {
+        const data = JSON.parse(await readFile(active, 'utf8'));
+        if (data.requestNo !== entry.name || typeof data.text !== 'string') throw new Error('Queue identity mismatch');
+        await handle(data);
+        await writeFile(path.join(job, 'done.json'), JSON.stringify({ requestNo: data.requestNo, completedAt: new Date().toISOString() }));
+        await rename(active, path.join(job, 'completed-payload.json'));
+      } catch (error) {
+        await rename(active, path.join(job, 'failed-payload.json'));
+        await onError(entry.name, error);
+      }
+    }
+  } finally { clearInterval(timer); }
 }
