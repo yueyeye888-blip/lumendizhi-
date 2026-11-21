@@ -1,0 +1,19 @@
+{
+  "format": "lumen-encrypted-snapshot-v1",
+  "snapshotId": "yorkeai-template-previews-20261122",
+  "fileCount": 418,
+  "archiveSha256": "08d7e788c42dc444baddfb605f3d600e0b2e4e7ffb1cea0c24cafe8d3b3d67cb",
+  "cipherSha256": "680f2ce76d25933e8d748c5164449d42e70ffacb8884ef3f3d53c7837846f291",
+  "chunks": [
+    {
+      "name": "snapshot.part001",
+      "bytes": 20971520,
+      "sha256": "d118fd212990eec09393ca71c39affd77c66940ab72944548c650da23e0b5282"
+    },
+    {
+      "name": "snapshot.part002",
+      "bytes": 15680885,
+      "sha256": "cdc0868ccc01759bb13bcaf5692e294dcf4932e4ecfd8599cd7321431733015c"
+    }
+  ]
+}

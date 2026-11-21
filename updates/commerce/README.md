@@ -6,7 +6,7 @@ Yorke AI 平台右上角提供语言切换，右下角客服弹窗可发送消�
 
 ## 恢复钱包版商城
 
-1. 在 [Lumenziyuan 商城源码](https://github.com/yueyeye888-blip/Lumenziyuan/tree/aa9fa7ecabe3fccf6a020576204f860605fd54f0) 基线 `aa9fa7ecabe3fccf6a020576204f860605fd54f0` 上，依次应用本目录的 `unclaimed-address-refund.patch`、`owner-review-and-support.patch`、`refund-review-list.patch`、`yorke-ai-support-inbox.patch`、`workspace-refunds-and-esim.patch`、`template-country-filters.patch` 和 `inline-template-introductions.patch`。对每个补丁先执行 `git apply --check <补丁路径>`，再执行 `git apply <补丁路径>`。七个补丁都应用后再发布。
+1. 在 [Lumenziyuan 商城源码](https://github.com/yueyeye888-blip/Lumenziyuan/tree/aa9fa7ecabe3fccf6a020576204f860605fd54f0) 基线 `aa9fa7ecabe3fccf6a020576204f860605fd54f0` 上，依次应用本目录的 `unclaimed-address-refund.patch`、`owner-review-and-support.patch`、`refund-review-list.patch`、`yorke-ai-support-inbox.patch`、`workspace-refunds-and-esim.patch`、`template-country-filters.patch`、`inline-template-introductions.patch` 和 `yorkeai-template-previews.patch`。对每个补丁先执行 `git apply --check <补丁路径>`，再执行 `git apply <补丁路径>`。八个补丁都应用后再发布，并按下文恢复预览图片。
 2. 按商城原部署流程发布。复用原 `superAdminEmail` 或首个配置的管理员邮箱作为唯一复核账号。确认站内客服入口可用、普通账号只看到自己的工单、所有者可见退款复核。
 3. Windows 接单任务使用本仓库的 `app/lib/site-order-queue.mjs`，站点对应文件为 `selfhost/site/site-order-queue.mjs`。完整恢复脚本会把这两个更新覆盖到 2026-11-16 的旧快照。旧快照早于商城钱包，安装钱包版还需执行前两步。
 
@@ -33,3 +33,18 @@ tar -xf "$env:TEMP\yorke-template-reference.tar.gz" -C C:\LumenResourceHub
 ```
 
 也可在商城目录运行 `node sync-template-introductions.mjs`，或传入从官方目录下载的 JSON 文件路径。更新本地文件后，重启商城网站即可加载这份离线资料。
+
+## 恢复 YorkeAI 模板预览图
+
+第八个补丁将模板卡片、生成器选中样张和放大预览指向站内的 WebP 图片。归档 `yorkeai-template-previews` 包含 373 张地址模板预览和 45 张证件类预览。地址模版 11404 的上游样张返回 HTTP 404，页面会显示“暂无样张”。
+
+在备份仓库根目录运行以下命令，将图片恢复至自托管网站。恢复使用与 2026-11-16 备份相同的密钥。
+
+```powershell
+node tools/backup/vault.mjs decrypt updates/commerce/yorkeai-template-previews/manifest.json D:\Private\20261116-828a0280-RECOVERY-KEY.json "$env:TEMP\yorke-previews.tar.gz"
+tar -xf "$env:TEMP\yorke-previews.tar.gz" -C C:\LumenResourceHub
+```
+
+网站启动后，用普通账号进入全球模版库，打开一张样张，再从生成器选中同一模版，两个视图应显示相同的 YorkeAI 图。需要从源码重建前端时，把解包得到的 `dist/client/yorke-previews` 整个目录复制到源码的 `public/` 下再构建。预览图片的逐文件 SHA-256 在商城的 `selfhost/release-manifest.json` 中。
+
+若需从相同的公开样张重新生成图片，在商城源码安装开发依赖，将已核对的源预览以 `addr-编号.img` 或 `windx-编号.img` 保存到单独目录，运行 `node scripts/template-previews/build.mjs <源预览目录> <输出目录>`。每张样张的来源校验和与水印位置保存在 `scripts/template-previews/layouts.json`。供应商更新样张时，先核对新图的水印位置，再更新对应记录。
