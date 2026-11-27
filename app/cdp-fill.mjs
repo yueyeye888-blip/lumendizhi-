@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { waitForVerification } from "./lib/verification.mjs";
+import { waitForOrderConfirmation } from "./lib/verification.mjs";
 import { parsePersonalDetailsNotice } from "./lib/parser.mjs";
 import { ensureBrowserReady, createBrowserConnection, browserConnectionError } from "./lib/browser-connection.mjs";
 
@@ -71,15 +71,6 @@ const ready = await waitUntil(
   60,
 );
 if (!ready) throw new Error("addrs.xyz 首页加载超时");
-
-const readVerificationState = () => evaluate(`(() => {
-  const widget = document.querySelector('#order_turnstile');
-  const scope = widget?.parentElement || widget || document;
-  const response = scope.querySelector('input[name="cf-turnstile-response"]');
-  return { widgetPresent: Boolean(widget), responseLength: typeof response?.value === 'string' ? response.value.length : 0 };
-})()`);
-const verificationReady = await waitForVerification(readVerificationState);
-await sleep(500);
 
 const payload = JSON.stringify({ ...profile, recipientEmail: addrsDeliveryEmail });
 const fillResult = await evaluate(`(async () => {
@@ -200,9 +191,6 @@ if (!/BEP20|BNB Smart Chain/i.test(fillResult.paymentMethod || "")) {
 }
 await sleep(700);
 
-// If verification expires while filling, wait on the same page for the user.
-await waitForVerification(readVerificationState);
-
 const createResult = await evaluate(`(() => {
   const button = document.querySelector('#create_order_button');
   if (!button) return { ok: false, error: '找不到“创建支付订单”按钮' };
@@ -211,29 +199,21 @@ const createResult = await evaluate(`(() => {
 })()`);
 if (!createResult?.ok) throw new Error(createResult?.error || "无法创建支付订单");
 
-const modalReady = await waitUntil(async () => {
-  const state = await evaluate(`(() => {
-    const dialog = document.querySelector('#order_confirm_dialog');
-    const style = dialog ? getComputedStyle(dialog) : null;
-    const visible = Boolean(dialog && (dialog.open || (style?.display !== 'none' && style?.visibility !== 'hidden')));
-    return { visible };
-  })()`);
-  return state.visible ? state : null;
-}, 60);
-if (!modalReady) {
-  const statusText = await evaluate("(document.querySelector('#order_form_status')?.textContent || '').trim()").catch(() => "");
-  if (/人机验证失败/.test(statusText)) {
-    await call("Page.reload", { ignoreCache: true }).catch(() => {});
-    throw new Error(`${statusText}；页面已刷新，下次提交将使用新的 Turnstile 令牌`);
-  }
-  throw new Error(statusText || "创建订单校验超时，未出现确认弹窗");
-}
-
-await sleep(500);
+// The storefront starts its order verification on the first form submission.
+await waitForOrderConfirmation(() => evaluate(`(() => {
+  const dialog = document.querySelector('#order_confirm_dialog');
+  const confirm = dialog?.querySelector('#order_confirm_submit');
+  const status = document.querySelector('#order_form_status');
+  return {
+    confirmationReady: Boolean(dialog?.open && confirm && !confirm.disabled),
+    error: status?.classList.contains('error') ? status.textContent.trim() : '',
+  };
+})()`));
 
 const confirmResult = await evaluate(`(() => {
-  const button = document.querySelector('#order_confirm_submit');
-  if (!button) return { ok: false, error: '找不到“确认并创建订单”按钮' };
+  const dialog = document.querySelector('#order_confirm_dialog');
+  const button = dialog?.querySelector('#order_confirm_submit');
+  if (!dialog?.open || !button || button.disabled) return { ok: false, error: '订单确认窗口未就绪' };
   button.click();
   return { ok: true };
 })()`);

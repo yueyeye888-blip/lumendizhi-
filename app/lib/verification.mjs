@@ -1,32 +1,53 @@
 const prefix = 'LUMEN_FILL_PROGRESS ';
+const verificationTimeoutSeconds = 60;
 export const verificationMessages = {
-  waiting_verification: '等待人工人机验证：请在服务器 Chrome 的 addrs.xyz 页面完成 Turnstile。程序最多等待 5 分钟，完成后会继续当前订单，请勿刷新页面或重复提交。',
-  verification_ready: '人机验证已完成，继续自动填表和创建订单',
+  waiting_verification: `正在等待页面自动验证，最多 ${verificationTimeoutSeconds} 秒。`,
+  verification_ready: '页面自动验证已完成，继续处理订单。',
 };
 export function emitVerificationEvent(event) {
   process.stderr.write(prefix + JSON.stringify({event}) + '\n');
 }
-export async function waitForVerification(readState, {
-  timeoutMs = 300_000,
-  now = Date.now,
+const monotonicNow = () => performance.now();
+
+export async function waitForOrderConfirmation(readState, {
+  timeoutMs = verificationTimeoutSeconds * 1000,
+  now = monotonicNow,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   onEvent = emitVerificationEvent,
 } = {}) {
-  const start = now(); let notified = false;
-  while (now() - start < timeoutMs) {
-    let state; try { state = await readState(); } catch (error) {
-      if (error?.code === 'BROWSER_CONNECTION_LOST') throw error;
-      /* Navigation may invalidate the context. */
+  const start = now();
+  const deadline = start + timeoutMs;
+  const expired = Symbol('verification deadline');
+  let timer;
+  const timeout = new Promise(resolve => { timer = setTimeout(resolve, timeoutMs, expired); });
+  let notified = false;
+  try {
+    while (now() < deadline) {
+      let state;
+      try {
+        state = await Promise.race([readState(), timeout]);
+      } catch (error) {
+        if (error?.code === 'BROWSER_CONNECTION_LOST') throw error;
+        // Navigation can briefly invalidate the execution context.
+      }
+      if (state === expired || now() >= deadline) break;
+      if (state?.error) throw new Error(state.error);
+      if (state?.confirmationReady) {
+        if (notified) onEvent('verification_ready');
+        return state;
+      }
+      if (!notified && now() - start >= 5_000) {
+        notified = true;
+        onEvent('waiting_verification');
+      }
+      await sleep(Math.min(1000, deadline - now()));
     }
-    if (state?.widgetPresent && Number(state.responseLength) > 0) {
-      if (notified) onEvent('verification_ready');
-      return state;
-    }
-    if (!notified && now() - start >= 5_000) { notified = true; onEvent('waiting_verification'); }
-    await sleep(Math.min(1000, timeoutMs - (now() - start)));
+  } finally {
+    clearTimeout(timer);
   }
-  throw new Error('人机验证等待超时（5 分钟）：本次未创建支付订单、未付款。请联系管理员，在新订单处理时及时到服务器 Chrome 完成验证；当前失败订单不会自动重试。');
+  throw new Error(`等待订单确认窗口超时（${verificationTimeoutSeconds} 秒），本次未确认创建上游订单、未向上游付款。`);
 }
+
 // Serialize callbacks and drain them before publishing a final order status.
 export function createVerificationProgress(onProgress = async () => {}) {
   let buffer = '', pending = Promise.resolve();

@@ -10,7 +10,7 @@
 - Windows 原机完成加密→解密→明文 SHA256 对比；下载到本机再次验证密文 SHA256。
 - 本机从仓库30个分片重组、认证解密、验证压缩包 SHA256、解压并逐一核对8,079个文件，全部通过。
 - 已用恢复出来的私钥推导钱包地址并与原元数据核对，确认一致；网站 Outlook 凭据可用同包 SETTINGS_ENCRYPTION_KEY 解密。
-- 公开运行代码基线191个文件从快照提取；后续验证码等待、邮件交付、浏览器连接和接单心跳补丁累计更新其中7个文件并新增5个文件，原快照 SHA256 保留为 snapshotSha256。当前来源路径和 SHA256 见 [production-code-manifest.json](production-code-manifest.json)。新增独立接口和恢复工具不冒充为原生产代码。
+- 公开运行代码基线191个文件从快照提取；后续地址填表与订单确认、邮件交付、浏览器连接和接单心跳补丁列于 `config/restore-overlays.json`，原快照 SHA256 保留为 snapshotSha256。当前来源路径和 SHA256 见 [production-code-manifest.json](production-code-manifest.json)。新增独立接口和恢复工具不冒充为原生产代码。
 - 上传前公开文本扫描核对了已知生产秘密值、Telegram Token 和私钥 PEM 特征；真实凭据只存在于认证加密快照内。密钥未进入仓库。
 
 ## 功能验证

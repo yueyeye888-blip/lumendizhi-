@@ -36,7 +36,9 @@
     {
       "path": "app/README.md",
       "source": "SafeTGDemo/README.md",
-      "sha256": "b1132174f42b6af73db8716d06177c154a9205a463307cdd5ff2618d4d51c7cb"
+      "sha256": "80a88b9c3bb7cbc3bd4740e59d7b87a5655fe5243a68a0b5b1a28daaeaf3680d",
+      "snapshotSha256": "b1132174f42b6af73db8716d06177c154a9205a463307cdd5ff2618d4d51c7cb",
+      "overlay": "20261126-order-confirmation-60s"
     },
     {
       "path": "app/package-lock.json",
@@ -51,9 +53,9 @@
     {
       "path": "app/cdp-fill.mjs",
       "source": "SafeTGDemo/cdp-fill.mjs",
-      "sha256": "ac286ec8338317cb8de0dbddae38f188b9ce10b97a61f2a27003281593fe004b",
+      "sha256": "b5f49077820c7a883aa31e34bea9a2159a0284248793763054d8a5a107b44467",
       "snapshotSha256": "913f2b3d374bd53860ceb74afaa1523e45deaac212f59fdbd9772733bc7a82b1",
-      "overlay": "20261121-checkout-refund-review"
+      "overlay": "20261126-order-confirmation-60s"
     },
     {
       "path": "app/server.mjs",
@@ -93,7 +95,9 @@
     {
       "path": "app/tests/cdp-fill.test.mjs",
       "source": "SafeTGDemo/tests/cdp-fill.test.mjs",
-      "sha256": "c360d717aeac06e095cc7295ff7832c4bb9a3fd0c9d28d6438b2d1aa1a35b2eb"
+      "sha256": "a184d55c74db6de5589bc83a06f573743b553e00c44c1824208f421056f62ac2",
+      "snapshotSha256": "c360d717aeac06e095cc7295ff7832c4bb9a3fd0c9d28d6438b2d1aa1a35b2eb",
+      "overlay": "20261126-order-confirmation-60s"
     },
     {
       "path": "app/tests/telegram.test.mjs",
@@ -973,14 +977,14 @@
     {
       "path": "app/lib/verification.mjs",
       "source": "post-snapshot overlay",
-      "sha256": "82893a626d223f296d61b5a796bf494ff4d647c9638d3b4e3bf225aea783d047",
-      "overlay": "20261117-browser-connection"
+      "sha256": "7b86d7fa0883a9d04991d46181a8250969d25629a34657203e271ef804d246c4",
+      "overlay": "20261126-order-confirmation-60s"
     },
     {
       "path": "app/tests/verification.test.mjs",
       "source": "post-snapshot overlay",
-      "sha256": "545e6f7e5a9eca88eab80a9e0c5eb73666543cbacea43972f3d5faaa0ed1b082",
-      "overlay": "20261116-human-verification-wait"
+      "sha256": "14526a351a56eddcbd7fae799f753f83df8fab204c0389f43aac085aa48bb9b8",
+      "overlay": "20261126-order-confirmation-60s"
     },
     {
       "path": "app/tests/pdf-only-delivery.test.mjs",
@@ -997,9 +1001,9 @@
     {
       "path": "app/tests/browser-connection.test.mjs",
       "source": "post-snapshot overlay",
-      "sha256": "8d68299dc45e56bc1ec2a4a6a154fade3c7940eed71488ce5c64a6b6b04a31e8",
-      "overlay": "20261117-browser-connection"
+      "sha256": "90dd97444f86ec7c6f898b897d1628b409f291e3aaae8a8a19188fad7fcf6969",
+      "overlay": "20261126-order-confirmation-60s"
     }
   ],
-  "overlay": "20261121-checkout-refund-review"
+  "overlay": "20261126-order-confirmation-60s"
 }

@@ -53,12 +53,13 @@ test("starts every order from a newly loaded addrs.xyz form", async () => {
   assert.ok(source.includes('Page.navigate'));
 });
 
-test("waits for a fresh Turnstile response and never reuses a failed token", async () => {
+test("waits for the storefront confirmation only after filling and starting preflight", async () => {
   const source = await readFile(path.join(testDir, "..", "cdp-fill.mjs"), "utf8");
-  assert.ok(source.includes("Turnstile responses are short-lived and single-use"));
-  assert.ok(source.includes("#order_turnstile"));
-  assert.ok(source.includes('input[name=\"cf-turnstile-response\"]'));
-  assert.ok(source.includes("verificationReady"));
-  assert.ok(source.includes('Page.reload'));
-  assert.ok(source.includes("下次提交将使用新的 Turnstile 令牌"));
+  const fill = source.indexOf("const fillResult =");
+  const submit = source.indexOf("const createResult =");
+  const wait = source.indexOf("await waitForOrderConfirmation(");
+  const confirm = source.indexOf("const confirmResult =");
+  assert.ok(fill >= 0 && fill < submit && submit < wait && wait < confirm);
+  assert.ok(source.includes("dialog?.open && confirm && !confirm.disabled"));
+  assert.ok(!source.includes("cf-turnstile-response"));
 });

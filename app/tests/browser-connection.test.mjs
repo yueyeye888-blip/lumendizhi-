@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ensureBrowserReady, createBrowserConnection, browserConnectionError} from '../lib/browser-connection.mjs';
-import {waitForVerification} from '../lib/verification.mjs';
+import {waitForOrderConfirmation} from '../lib/verification.mjs';
 
 const ready = async () => ({ok:true, json:async()=>({Browser:'Chrome/test',webSocketDebuggerUrl:'ws://127.0.0.1/test'})});
 test('healthy browser is reused without starting or navigating it', async () => {
@@ -42,8 +42,8 @@ test('unresponsive CDP request times out instead of leaving an unresolved top-le
   await assert.rejects(connection.call('Runtime.evaluate'),/响应超时/);assert.equal(socket.readyState,3);
 });
 test('verification aborts on lost browser but tolerates a navigated execution context', async () => {
-  await assert.rejects(waitForVerification(async()=>{throw browserConnectionError();},{sleep:()=>assert.fail('must abort immediately')}),{code:'BROWSER_CONNECTION_LOST'});
+  await assert.rejects(waitForOrderConfirmation(async()=>{throw browserConnectionError();},{sleep:()=>assert.fail('must abort immediately')}),{code:'BROWSER_CONNECTION_LOST'});
   let calls=0;
-  const state=await waitForVerification(async()=>{if(++calls===1)throw new Error('Execution context destroyed');return {widgetPresent:true,responseLength:100};},{sleep:async()=>{},onEvent:()=>{}});
-  assert.equal(state.responseLength,100);
+  const state=await waitForOrderConfirmation(async()=>{if(++calls===1)throw new Error('Execution context destroyed');return {confirmationReady:true};},{sleep:async()=>{},onEvent:()=>{}});
+  assert.equal(state.confirmationReady,true);
 });

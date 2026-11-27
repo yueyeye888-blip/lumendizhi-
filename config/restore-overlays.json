@@ -1,11 +1,11 @@
 {
-  "id": "20261121-checkout-refund-review",
+  "id": "20261126-order-confirmation-60s",
   "baseSnapshot": "20261116-828a0280",
   "files": [
     {
       "component": "app",
       "relativePath": "cdp-fill.mjs",
-      "sha256": "ac286ec8338317cb8de0dbddae38f188b9ce10b97a61f2a27003281593fe004b"
+      "sha256": "b5f49077820c7a883aa31e34bea9a2159a0284248793763054d8a5a107b44467"
     },
     {
       "component": "app",
@@ -15,12 +15,12 @@
     {
       "component": "app",
       "relativePath": "lib/verification.mjs",
-      "sha256": "82893a626d223f296d61b5a796bf494ff4d647c9638d3b4e3bf225aea783d047"
+      "sha256": "7b86d7fa0883a9d04991d46181a8250969d25629a34657203e271ef804d246c4"
     },
     {
       "component": "app",
       "relativePath": "tests/verification.test.mjs",
-      "sha256": "545e6f7e5a9eca88eab80a9e0c5eb73666543cbacea43972f3d5faaa0ed1b082"
+      "sha256": "14526a351a56eddcbd7fae799f753f83df8fab204c0389f43aac085aa48bb9b8"
     },
     {
       "component": "selfhost/site",
@@ -50,7 +50,7 @@
     {
       "component": "app",
       "relativePath": "tests/browser-connection.test.mjs",
-      "sha256": "8d68299dc45e56bc1ec2a4a6a154fade3c7940eed71488ce5c64a6b6b04a31e8"
+      "sha256": "90dd97444f86ec7c6f898b897d1628b409f291e3aaae8a8a19188fad7fcf6969"
     },
     {
       "component": "app",
@@ -61,6 +61,16 @@
       "component": "selfhost/site",
       "relativePath": "site-order-queue.mjs",
       "sha256": "3d0ef29ed8265cbedd55971f4020f6a0b20e3836d495b3fde9cee45285d501b5"
+    },
+    {
+      "component": "app",
+      "relativePath": "README.md",
+      "sha256": "80a88b9c3bb7cbc3bd4740e59d7b87a5655fe5243a68a0b5b1a28daaeaf3680d"
+    },
+    {
+      "component": "app",
+      "relativePath": "tests/cdp-fill.test.mjs",
+      "sha256": "a184d55c74db6de5589bc83a06f573743b553e00c44c1824208f421056f62ac2"
     }
   ]
 }
